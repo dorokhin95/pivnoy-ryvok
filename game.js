@@ -98,8 +98,9 @@ const running=mode==='run',py=running||mode==='pause'||mode==='over'?jumpY:0,pX=
 ellipsoid(pX,(grounded?py:surfaceY)+.025,0,.65,.018,.44,[.13,.21,.24],14,3);
 // Squash on touchdown, stretch along the jump arc; the roll deformation takes over while sliding.
 const stretch=!running?0:slide>0?0:!grounded?Math.max(-.06,Math.min(.10,vy*.009)):-(landing/.18)*.09;
-if(!(invincible>0&&Math.floor(time*10)%2)){person(pX,py,0,running||mode==='pause'?animTime:mode==='over'?animTime:time*2,skins[save.skin].color,false,Math.max(slideBlend,landing*.7),{roll:slide>0?1-slide/ROLL_DURATION:0,air:grounded?0:Math.max(0,py-surfaceY),trip:stumble,lean,vy:running?vy:0,stretch,idle:!['run','pause'].includes(mode),arrest:mode==='over'?1:0});}
-if(chaseVisual>.015||mode==='over'){const cz=mode==='over'?-1.05:-6.5+chaseVisual*4.5;ellipsoid(pX*.9+.38,.025,cz,.7,.017,.46,[.13,.21,.24],14,3);person(pX*.9+.38,0,cz,mode==='over'?0:animTime*.97,[.13,.27,.43],true,false,{idle:!['run','pause'].includes(mode),arrest:mode==='over'?1:0});}
+const pace=Math.max(0,Math.min(1,(speed-11)/15));
+if(!(invincible>0&&Math.floor(time*10)%2)){person(pX,py,0,running||mode==='pause'?animTime:time*2,skins[save.skin].color,false,Math.max(slideBlend,landing*.7),{roll:slide>0?1-slide/ROLL_DURATION:0,air:grounded?0:Math.max(0,py-surfaceY),trip:stumble,lean,vy:running?vy:0,stretch,speed:pace,idle:!['run','pause'].includes(mode),arrest:mode==='over'?1:0});}
+if(chaseVisual>.015||mode==='over'){const cz=mode==='over'?-1.05:-6.5+chaseVisual*4.5;ellipsoid(pX*.9+.38,.025,cz,.7,.017,.46,[.13,.21,.24],14,3);person(pX*.9+.38,0,cz,mode==='over'?time*2:animTime*.97,[.13,.27,.43],true,false,{speed:pace,idle:!['run','pause'].includes(mode),arrest:mode==='over'?1:0});}
 if(stumble>0)for(let k=0;k<5;k++)ellipsoid(pX+Math.sin(k*9+time*5)*.48,.05+k*.04,-.4-k*.17,.10,.055,.09,[.60,.53,.39],6,3);
 if(shield>0){for(const s of [-1,1])box(pX+s*.68,1.1+py,0,.07,1.7,.55,[.35,.8,1]);}
 canvas.style.filter=hitFlash>0?'sepia(.4) saturate(1.6)':'none';

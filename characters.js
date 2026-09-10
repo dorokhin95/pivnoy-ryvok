@@ -7,36 +7,74 @@ function matrix(t,rx=0,ry=0,rz=0){const cx=Math.cos(rx),sx=Math.sin(rx),cy=Math.
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // Gait personality: Semyonych runs upright with a controlled, on-duty stride; Boris is the scrappy baseline.
 const GAIT={police:{amp:.82,freq:.90,arm:.60,sway:.4},boris:{amp:1,freq:1,arm:1,sway:1}};
+const lerp=(a,b,k)=>a+(b-a)*k,mix3=(a,b,k)=>[lerp(a[0],b[0],k),lerp(a[1],b[1],k),lerp(a[2],b[2],k)];
+const SIDES=[[-1,3,4,9,10,11],[1,6,7,12,13,14]];
 function rig(t,slide,pose,kind){
  const data=window.PIVNOY_MODELS,rest=data.bones[kind==='rider_far'?'rider':kind]||data.bones.boris,nb=rest.length;
  const rot=rest.map(()=>[0,0,0]),off=rest.map(()=>[0,0,0]),idle=pose.idle,G=GAIT[kind]||GAIT.boris;
- const gait=idle?0:Math.sin(t*G.freq)*G.amp,lag=idle?0:Math.sin(t*G.freq-.42)*G.amp,air=pose.air||0,lean=pose.lean||0,trip=pose.trip||0,vy=pose.vy||0;
- const bob=idle?0:Math.sin(2*t*G.freq-1.1);
- rot[0]=[trip*.20,-gait*.05,-lean*.13];off[0][1]=idle?Math.sin(t)*.014:Math.abs(Math.cos(t*G.freq))*.033;
- rot[1]=[.045+air*.07,Math.sin(t)*.035*(idle?.2:1)*G.sway+gait*.06,0];rot[2]=[-.035,Math.sin(t*.32)*.055*G.sway,lean*.09];
- for(const [side,ua,fa,th,sh,ft]of [[-1,3,4,9,10,11],[1,6,7,12,13,14]]){
-  const swing=gait*side,armSwing=swing*G.arm,armLag=lag*side*G.arm;
-  rot[ua]=[armSwing*.54,0,-side*.07];rot[fa]=[-.46-Math.max(0,-armLag)*.45,0,0];
-  rot[th]=[-swing*.64,0,side*.025];rot[sh]=[.10+Math.max(0,swing)*.92,0,0];rot[ft]=[-Math.max(0,swing)*.28,0,0];
-  if(air>0){rot[th]=[-.52+(side===1?.23:0),0,0];rot[sh]=[.9,0,0];rot[ua]=[-.63,0,-side*.12];rot[fa]=[-.60,0,0];}
+ const speed=clamp(pose.speed||0,0,1),stride=G.amp*(1+.18*speed),w=t*G.freq;
+ const gait=idle?0:Math.sin(w)*stride,lag=idle?0:Math.sin(w-.42)*stride,air=pose.air||0,lean=pose.lean||0,trip=pose.trip||0,vy=pose.vy||0,up=clamp(vy/9.8,-1,1),pr=pose.roll||0;
+ // Two bounces per stride: lowest at mid-stance (legs together), highest in flight (legs apart).
+ const ph=idle?0:Math.sin(w),bounce=ph*ph,bob=idle?0:Math.sin(2*w-1.1);
+ // Pelvis: lean grows with speed, hips yaw and roll with the stride, bank into a lane change.
+ rot[0]=[trip*.20+.04*speed,-gait*.06+lean*.10,-lean*.13+gait*.05];
+ off[0][1]=idle?Math.sin(t)*.014:bounce*.036;off[0][2]=idle?Math.sin(t*.7)*.006:0;
+ // Chest counters the hips and turns into the lane change; the head stays level, nods with the bounce and leads the turn.
+ rot[1]=[.045+.10*speed+air*.07,Math.sin(t)*.035*(idle?.2:1)*G.sway+gait*.08+lean*.22,-gait*.03];
+ rot[2]=[-.035-.05*speed-bounce*.03,Math.sin(t*.32)*.055*G.sway+lean*.15,lean*.09-gait*.02];
+ for(const [side,ua,fa,th,sh,ft]of SIDES){
+  const swing=gait*side,armSwing=swing*G.arm,armLag=lag*side*G.arm,fwd=Math.max(0,swing),back=Math.max(0,-swing);
+  // Elbows flex as the arm comes forward; a stumble throws the arms up and out.
+  rot[ua]=[armSwing*.58-trip*.9,0,-side*.07+side*trip*.7];rot[fa]=[-.50-Math.max(0,-armLag)*.55-trip*.4,0,0];
+  // Knee lifts on the forward swing, toe points on the push-off behind.
+  rot[th]=[-swing*.66,0,side*.025];rot[sh]=[.10+fwd*.95,0,0];rot[ft]=[-fwd*.28+back*.35,0,0];
+  if(air>0){
+   // Rising: arms swing up, knees tuck. Falling: legs reach for the ground, arms spread for balance.
+   const rise=Math.max(0,up),fall=Math.max(0,-up);
+   rot[th]=[-.52+(side===1?.23:0)+fall*.32-rise*.10,0,0];rot[sh]=[.9-fall*.5,0,0];rot[ft]=[-.2+fall*.35,0,0];
+   rot[ua]=[-.63-rise*.9+fall*.15,0,-side*.12+side*fall*.6];rot[fa]=[-.60-rise*.3,0,0];
+  }
  }
  // Prop joints: bag/box lags the torso bounce and reacts to vertical speed; beard/hood/strings swing after the head; belt gear jiggles.
  if(nb>15){
   off[15][1]=-.020*bob+clamp(-vy*.010,-.045,.045);rot[15]=[.06*bob+clamp(vy*.02,-.14,.14),0,lean*.18];
-  rot[16]=[.05*Math.sin(2*t*G.freq-1.5)+clamp(-vy*.03,-.22,.22)-trip*.15,-rot[2][1]*.6,lean*.12];
-  rot[17]=[0,0,.05*Math.sin(2*t*G.freq-.9)];off[17][1]=-.006*bob;
+  rot[16]=[.05*Math.sin(2*w-1.5)+clamp(-vy*.03,-.22,.22)-trip*.15,-rot[2][1]*.6,lean*.12];
+  rot[17]=[0,0,.05*Math.sin(2*w-.9)];off[17][1]=-.006*bob;
  }
  if(kind==='rider'){
   const kick=Math.sin(t*.62),bump=Math.sin(t*1.3);
-  off[0][1]=-.055+bump*.018;rot[1]=[-.13+kick*.03,0,0];rot[2]=[.13,0,0];
+  off[0][1]=-.055+bump*.018;rot[1]=[-.13+kick*.03,kick*.04,0];rot[2]=[.13,-kick*.03,0];
   for(const [side,ua,fa]of [[-1,3,4],[1,6,7]]){rot[ua]=[-1.2794,0,-side*1.20];rot[fa]=[-.0075+bump*.02,0,-side*.223];}
   // Left leg plants on the deck with a light suspension flex; right leg kicks back to push off and recovers forward.
   rot[9]=[-.15+Math.max(0,kick)*.07,0,0];rot[10]=[.20+Math.max(0,kick)*.14,0,0];
   rot[12]=[.15+kick*.42,0,0];rot[13]=[.22+Math.max(0,-kick)*.50,0,0];
   if(nb>15){off[15][1]=.012*Math.sin(t*1.3-1.0);rot[15]=[.04*Math.sin(t*1.3-1.0)-kick*.03,0,0];rot[16]=[.07*Math.sin(t*1.3-1.2),0,0];}
  }
- if(slide>0){off[0][1]-=.46*slide;rot[1][0]=-.65*slide;rot[2][0]=.43*slide;for(const [ua,fa,th,sh]of [[3,4,9,10],[6,7,12,13]]){rot[ua]=[-1.0*slide,0,0];rot[fa]=[-1.15*slide,0,0];rot[th]=[-1.30*slide,0,0];rot[sh]=[2.1*slide,0,0];}}
- if(pose.arrest){rot[1][0]=-.12;rot[3][0]=rot[6][0]=-.60;rot[4][0]=rot[7][0]=-.65;}
+ if(slide>0&&pr>0){
+  // Forward roll done by the skeleton: a real tuck (chin to chest, knees to chest, arms around the knees) and the whole
+  // body turning about the centre of the curled-up ball, which sits 0.40 above the ground. No geometry is squashed.
+  const k=slide,ang=clamp((pr-.12)/.76,0,1)*6.2831853,cx=Math.cos(ang),sx=Math.sin(ang);
+  rot[0]=[rot[0][0]*(1-k)+ang,rot[0][1]*(1-k),rot[0][2]*(1-k)];
+  off[0]=[0,lerp(off[0][1],-.54-.02*cx+.30*sx,k),lerp(off[0][2],-.02*sx-.30*cx,k)];
+  rot[1][0]=lerp(rot[1][0],.95,k);rot[2][0]=lerp(rot[2][0],.72,k);
+  for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[-1.15,0,side*.15],k);rot[fa]=mix3(rot[fa],[-1.35,0,0],k);rot[th]=mix3(rot[th],[-1.45,0,side*.05],k);rot[sh]=mix3(rot[sh],[2.25,0,0],k);rot[ft]=mix3(rot[ft],[.30,0,0],k);}
+ }else if(slide>0){
+  // Landing: absorb the impact with a short crouch, arms out.
+  const k=slide;off[0][1]-=.14*k;rot[1][0]+=.28*k;rot[2][0]-=.15*k;
+  for(const [side,ua,fa,th,sh]of SIDES){rot[th][0]-=.45*k;rot[sh][0]+=.75*k;rot[ua][0]-=.2*k;rot[ua][2]+=side*.35*k;}
+ }
+ if(pose.arrest){
+  if(kind==='police'){
+   // Chest out, left hand on the belt, right forefinger wagging.
+   rot[1][0]=-.12;rot[2]=[-.12,Math.sin(t*.9)*.06,.08];
+   rot[3]=[.35,0,-.35];rot[4]=[-1.75,0,.55];
+   rot[6]=[-1.75,0,.40];rot[7]=[-1.35+Math.sin(t*7)*.22,0,0];
+  }else{
+   // Caught: hands up, head hung, shoulders heaving.
+   rot[1][0]=.12+Math.sin(t*1.6)*.02;rot[2][0]=.42;
+   for(const [side,ua,fa]of [[-1,3,4],[1,6,7]]){rot[ua]=[-2.35,0,side*.5];rot[fa]=[-.55,0,0];}
+  }
+ }
  const world=[],out=new Float32Array(nb*16);
  for(let i=0;i<nb;i++){const parent=data.parents[i],p=rest[i],rel=p.map((v,k)=>v-(parent<0?0:rest[parent][k])+off[i][k]);world[i]=matrix(rel,...rot[i]);if(parent>=0)world[i]=mul(world[parent],world[i]);const inverse=matrix(p.map(v=>-v));out.set(mul(world[i],inverse),i*16);}
  return out;
@@ -44,11 +82,10 @@ function rig(t,slide,pose,kind){
 class CharacterRenderer{
  constructor(gl){this.gl=gl;this.queue=[];this.meshes={};const NB=window.PIVNOY_MODELS.parents.length;const vs=`precision highp float;
 attribute vec3 position;attribute vec3 normal;attribute vec3 albedo;attribute vec4 joints;attribute vec4 weights;attribute float material;attribute float ao;
-uniform mat4 bones[${NB}];uniform vec3 origin;uniform float aspect;uniform float roll;uniform float yaw;uniform vec3 tint;uniform float stretch;
+uniform mat4 bones[${NB}];uniform vec3 origin;uniform float aspect;uniform float yaw;uniform vec3 tint;uniform float stretch;
 varying vec3 vNormal;varying vec3 vColor;varying vec3 vWorld;varying vec3 vRest;varying float vMaterial;varying float vFog;varying float vAO;
 void main(){vec3 pos=position*(1./8192.);mat4 skin=bones[int(joints.x)]*weights.x+bones[int(joints.y)]*weights.y+bones[int(joints.z)]*weights.z+bones[int(joints.w)]*weights.w;vec3 p=(skin*vec4(pos,1.)).xyz;vec3 n=mat3(skin)*normal;
 p.y*=1.+stretch;p.xz*=1.-stretch*.5;
-if(roll>0.){float r=clamp((roll-.12)/.76,0.,1.)*6.2831853;vec2 q=vec2(p.y-.59,p.z);float radius=length(q);float tuck=min(1.,min(roll/.10,(1.-roll)/.10));if(radius>.54)q*=mix(1.,.54/radius,tuck);p.y=.59+q.x*cos(r)-q.y*sin(r);p.z=q.x*sin(r)+q.y*cos(r);n.yz=mat2(cos(r),sin(r),-sin(r),cos(r))*n.yz;}
 mat2 turn=mat2(cos(yaw),-sin(yaw),sin(yaw),cos(yaw));p.xz=turn*p.xz;n.xz=turn*n.xz;p+=origin;
 vWorld=p;vRest=pos;vNormal=normalize(n);vAO=ao;vMaterial=material;
 vColor=albedo*((material>3.5&&material<5.5)?tint:vec3(1.));
@@ -91,14 +128,14 @@ void main(){
  const compile=(type,source)=>{const sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;};
  this.program=gl.createProgram();gl.attachShader(this.program,compile(gl.VERTEX_SHADER,vs));gl.attachShader(this.program,compile(gl.FRAGMENT_SHADER,fs));gl.linkProgram(this.program);if(!gl.getProgramParameter(this.program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(this.program));
  this.attrs=[['position',3,0,gl.SHORT,false],['normal',3,6,gl.BYTE,true],['albedo',3,9,gl.UNSIGNED_BYTE,true],['joints',4,12,gl.UNSIGNED_BYTE,false],['weights',4,16,gl.UNSIGNED_BYTE,true],['material',1,20,gl.UNSIGNED_BYTE,false],['ao',1,21,gl.UNSIGNED_BYTE,true]].map(([n,size,offset,type,normalized])=>({loc:gl.getAttribLocation(this.program,n),size,offset,type,normalized}));
- this.uniforms=Object.fromEntries(['bones[0]','origin','aspect','roll','yaw','tint','stretch'].map(n=>[n,gl.getUniformLocation(this.program,n)]));
+ this.uniforms=Object.fromEntries(['bones[0]','origin','aspect','yaw','tint','stretch'].map(n=>[n,gl.getUniformLocation(this.program,n)]));
  // Each character is a list of chunks (uint16 index limit); all chunks share the same bone matrices.
  for(const [kind,chunks]of Object.entries(window.PIVNOY_MODELS.meshes)){this.meshes[kind]=(Array.isArray(chunks)?chunks:[chunks]).map(encoded=>{const str=atob(encoded),raw=new Uint8Array(str.length);for(let i=0;i<str.length;i++)raw[i]=str.charCodeAt(i);const header=new DataView(raw.buffer),nv=header.getUint32(0,true),count=header.getUint32(4,true);if(raw.byteLength!==8+nv*STRIDE+count*2)throw Error('Invalid character asset');const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,new Uint8Array(raw.buffer,8,nv*STRIDE),gl.STATIC_DRAW);const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(raw.buffer.slice(8+nv*STRIDE,8+nv*STRIDE+count*2)),gl.STATIC_DRAW);return {vb,ib,count};});}
  }
  add(kind,x,y,z,t,c,slide,pose){this.queue.push({kind,x,y,z,t,c,slide,pose});}
  draw(aspect){const gl=this.gl,u=this.uniforms;gl.useProgram(this.program);gl.uniform1f(u.aspect,aspect);const base=[.34,.39,.23];
   for(const a of this.queue){const parts=this.meshes[a.kind==='rider'&&a.z>28?'rider_far':a.kind];
-   gl.uniformMatrix4fv(u['bones[0]'],false,rig(a.t,a.slide,a.pose,a.kind));gl.uniform3f(u.origin,a.x,a.y,a.z);gl.uniform1f(u.roll,a.pose.roll||0);gl.uniform1f(u.yaw,a.pose.yaw||0);gl.uniform1f(u.stretch,a.pose.roll>0?0:(a.pose.stretch||0));gl.uniform3f(u.tint,...(a.kind==='boris'?a.c.map((v,i)=>v/base[i]):[1,1,1]));
+   gl.uniformMatrix4fv(u['bones[0]'],false,rig(a.t,a.slide,a.pose,a.kind));gl.uniform3f(u.origin,a.x,a.y,a.z);gl.uniform1f(u.yaw,a.pose.yaw||0);gl.uniform1f(u.stretch,a.pose.roll>0?0:(a.pose.stretch||0));gl.uniform3f(u.tint,...(a.kind==='boris'?a.c.map((v,i)=>v/base[i]):[1,1,1]));
    for(const m of parts){gl.bindBuffer(gl.ARRAY_BUFFER,m.vb);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.ib);for(const at of this.attrs){gl.enableVertexAttribArray(at.loc);gl.vertexAttribPointer(at.loc,at.size,at.type,at.normalized,STRIDE,at.offset);}gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_SHORT,0);}}
   for(const a of this.attrs)gl.disableVertexAttribArray(a.loc);this.queue.length=0;}
 }
