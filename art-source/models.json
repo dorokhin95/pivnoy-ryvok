@@ -108,187 +108,6 @@
     ]
   },
   {
-    "name": "rider",
-    "vertices": 60431,
-    "triangles": 120322,
-    "chunks": 1,
-    "parts": [
-      {
-        "name": "jacket",
-        "vertices": 11620,
-        "triangles": 23236
-      },
-      {
-        "name": "trousers",
-        "vertices": 6414,
-        "triangles": 12824
-      },
-      {
-        "name": "hand",
-        "vertices": 2365,
-        "triangles": 4690
-      },
-      {
-        "name": "sneaker",
-        "vertices": 3390,
-        "triangles": 6776
-      },
-      {
-        "name": "hand",
-        "vertices": 2352,
-        "triangles": 4662
-      },
-      {
-        "name": "sneaker",
-        "vertices": 3390,
-        "triangles": 6776
-      },
-      {
-        "name": "face",
-        "vertices": 7885,
-        "triangles": 15714
-      },
-      {
-        "name": "eye",
-        "vertices": 752,
-        "triangles": 1500
-      },
-      {
-        "name": "eye",
-        "vertices": 752,
-        "triangles": 1500
-      },
-      {
-        "name": "eyebrows",
-        "vertices": 540,
-        "triangles": 1072
-      },
-      {
-        "name": "hood",
-        "vertices": 5602,
-        "triangles": 11244
-      },
-      {
-        "name": "drawstring",
-        "vertices": 874,
-        "triangles": 1744
-      },
-      {
-        "name": "drawstring",
-        "vertices": 880,
-        "triangles": 1756
-      },
-      {
-        "name": "helmet",
-        "vertices": 6006,
-        "triangles": 12008
-      },
-      {
-        "name": "chin strap",
-        "vertices": 2476,
-        "triangles": 4944
-      },
-      {
-        "name": "thermal box",
-        "vertices": 3452,
-        "triangles": 6520
-      },
-      {
-        "name": "box strap",
-        "vertices": 558,
-        "triangles": 1116
-      },
-      {
-        "name": "box strap",
-        "vertices": 555,
-        "triangles": 1108
-      },
-      {
-        "name": "strap clip",
-        "vertices": 568,
-        "triangles": 1132
-      }
-    ]
-  },
-  {
-    "name": "rider_far",
-    "vertices": 8097,
-    "triangles": 16018,
-    "chunks": 1,
-    "parts": [
-      {
-        "name": "jacket",
-        "vertices": 1734,
-        "triangles": 3468
-      },
-      {
-        "name": "trousers",
-        "vertices": 938,
-        "triangles": 1872
-      },
-      {
-        "name": "hand",
-        "vertices": 332,
-        "triangles": 646
-      },
-      {
-        "name": "sneaker",
-        "vertices": 460,
-        "triangles": 916
-      },
-      {
-        "name": "hand",
-        "vertices": 340,
-        "triangles": 662
-      },
-      {
-        "name": "sneaker",
-        "vertices": 460,
-        "triangles": 916
-      },
-      {
-        "name": "face",
-        "vertices": 1161,
-        "triangles": 2298
-      },
-      {
-        "name": "eye",
-        "vertices": 108,
-        "triangles": 212
-      },
-      {
-        "name": "eye",
-        "vertices": 108,
-        "triangles": 212
-      },
-      {
-        "name": "hood",
-        "vertices": 793,
-        "triangles": 1596
-      },
-      {
-        "name": "helmet",
-        "vertices": 870,
-        "triangles": 1736
-      },
-      {
-        "name": "thermal box",
-        "vertices": 636,
-        "triangles": 1172
-      },
-      {
-        "name": "box strap",
-        "vertices": 85,
-        "triangles": 172
-      },
-      {
-        "name": "box strap",
-        "vertices": 72,
-        "triangles": 140
-      }
-    ]
-  },
-  {
     "name": "boris_skin0",
     "vertices": 46981,
     "triangles": 93884,
@@ -496,9 +315,190 @@
     ]
   },
   {
+    "name": "rider",
+    "vertices": 64257,
+    "triangles": 128354,
+    "chunks": 1,
+    "parts": [
+      {
+        "name": "jacket",
+        "vertices": 11620,
+        "triangles": 23236
+      },
+      {
+        "name": "trousers",
+        "vertices": 6414,
+        "triangles": 12824
+      },
+      {
+        "name": "hand",
+        "vertices": 2365,
+        "triangles": 4690
+      },
+      {
+        "name": "sneaker",
+        "vertices": 3390,
+        "triangles": 6776
+      },
+      {
+        "name": "hand",
+        "vertices": 2352,
+        "triangles": 4662
+      },
+      {
+        "name": "sneaker",
+        "vertices": 3390,
+        "triangles": 6776
+      },
+      {
+        "name": "face",
+        "vertices": 7885,
+        "triangles": 15714
+      },
+      {
+        "name": "eye",
+        "vertices": 752,
+        "triangles": 1500
+      },
+      {
+        "name": "eye",
+        "vertices": 752,
+        "triangles": 1500
+      },
+      {
+        "name": "eyebrows",
+        "vertices": 540,
+        "triangles": 1072
+      },
+      {
+        "name": "hood",
+        "vertices": 5602,
+        "triangles": 11244
+      },
+      {
+        "name": "drawstring",
+        "vertices": 874,
+        "triangles": 1744
+      },
+      {
+        "name": "drawstring",
+        "vertices": 880,
+        "triangles": 1756
+      },
+      {
+        "name": "helmet",
+        "vertices": 6006,
+        "triangles": 12008
+      },
+      {
+        "name": "chin strap",
+        "vertices": 2476,
+        "triangles": 4944
+      },
+      {
+        "name": "thermal box",
+        "vertices": 7278,
+        "triangles": 14552
+      },
+      {
+        "name": "box strap",
+        "vertices": 558,
+        "triangles": 1116
+      },
+      {
+        "name": "box strap",
+        "vertices": 555,
+        "triangles": 1108
+      },
+      {
+        "name": "strap clip",
+        "vertices": 568,
+        "triangles": 1132
+      }
+    ]
+  },
+  {
+    "name": "rider_far",
+    "vertices": 8515,
+    "triangles": 16950,
+    "chunks": 1,
+    "parts": [
+      {
+        "name": "jacket",
+        "vertices": 1734,
+        "triangles": 3468
+      },
+      {
+        "name": "trousers",
+        "vertices": 938,
+        "triangles": 1872
+      },
+      {
+        "name": "hand",
+        "vertices": 332,
+        "triangles": 646
+      },
+      {
+        "name": "sneaker",
+        "vertices": 460,
+        "triangles": 916
+      },
+      {
+        "name": "hand",
+        "vertices": 340,
+        "triangles": 662
+      },
+      {
+        "name": "sneaker",
+        "vertices": 460,
+        "triangles": 916
+      },
+      {
+        "name": "face",
+        "vertices": 1161,
+        "triangles": 2298
+      },
+      {
+        "name": "eye",
+        "vertices": 108,
+        "triangles": 212
+      },
+      {
+        "name": "eye",
+        "vertices": 108,
+        "triangles": 212
+      },
+      {
+        "name": "hood",
+        "vertices": 793,
+        "triangles": 1596
+      },
+      {
+        "name": "helmet",
+        "vertices": 870,
+        "triangles": 1736
+      },
+      {
+        "name": "thermal box",
+        "vertices": 1054,
+        "triangles": 2104
+      },
+      {
+        "name": "box strap",
+        "vertices": 85,
+        "triangles": 172
+      },
+      {
+        "name": "box strap",
+        "vertices": 72,
+        "triangles": 140
+      }
+    ]
+  },
+  {
     "name": "boris_skin2",
-    "vertices": 41788,
-    "triangles": 83152,
+    "vertices": 48014,
+    "triangles": 96004,
     "chunks": 1,
     "parts": [
       {
@@ -528,8 +528,8 @@
       },
       {
         "name": "thermal box",
-        "vertices": 4750,
-        "triangles": 9096
+        "vertices": 10976,
+        "triangles": 21948
       },
       {
         "name": "box strap",

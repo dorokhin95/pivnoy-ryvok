@@ -135,8 +135,10 @@ class Character:
   if head:
    fn0,paint0=fn,paint;fn=headify(fn0);paint=(lambda p,c:paint0(headpt(p),c)) if paint0 else None
    bounds=[list(HC+(np.array(bb,dtype='f4')-HC)*HS) for bb in bounds];decals=[(headify(d[0]),d[1],d[2]) for d in decals];step=step*HS
-  p,n,f=mesh_field(fn,bounds,step*(2.6 if self.far else 1.0))
+  st=step*(2.6 if self.far else 1.0);p,n,f=mesh_field(fn,bounds,st)
   if len(p)==0 or len(f)==0:return
+  lo,hi=np.array(bounds[0],'f4'),np.array(bounds[1],'f4')
+  if (p<lo+st*1.01).any() or (p>hi-st*1.01).any():print('  note:',self.name,repr(name),'surface reaches its sampling bounds',flush=True)
   c=np.tile(color,(len(p),1)).astype('f4');mats=np.full(len(p),mat,'f4')
   # Subtle material wear on every surface; sharper micro-texture is added per material in the fragment shader.
   grain=(np.sin(p[:,0]*173+p[:,1]*257+p[:,2]*193)*np.sin(p[:,1]*83+p[:,2]*53))*.016
@@ -493,14 +495,16 @@ def build(kind,outfit=1):
    ch.add('strap buckle',lambda p:rbox(p,[.0,1.0,td+.03],[.028,.02,.012],.004),[[-.05,.96,td-.02],[.05,1.04,td+.06]],[.72,.60,.28],'coat',METAL,.005,None,True)
   elif outfit==2:
    baseball_cap('courier cap',[.09,.09,.11],[.98,.78,.10])
-   # Big delivery thermal box: lid seam line, black lettering on the back wall and on the lid (the chase camera looks down at it).
+   # Big delivery thermal box. rbox half-extents are s+r, so this one spans x +-.26, y 1.05..1.55, z -.59..-.19: the sampling
+   # bounds must enclose all of it (a face on the bounds is not meshed) and the front wall sits inside the jacket, so no gap shows.
+   # Black lettering goes on the back wall and on the lid, which is what the chase camera sees.
    def boxpaint(p,c):
-    x,y,z=p.T;c[(np.abs(y-1.47)<.006)&(z<-.50)]*=.6;c[(np.abs(np.abs(x)-.22)<.006)&(z<-.50)]*=.7;c[(np.abs(z+.30)<.006)&(y>1.50)]*=.7;return c
-   ch.add('thermal box',lambda p:rbox(p,[0,1.30,-.42],[.23,.22,.14],.03),[[-.27,1.06,-.59],[.27,1.55,-.26],],[.98,.80,.12],15,PLASTIC,.011,boxpaint)
-   data=ch.v[-1];x,y,z=data[:,:3].T;ink=[.08,.08,.10];back=(z<-.53)&(np.abs(x)<.228)
+    x,y,z=p.T;c[(np.abs(y-1.47)<.006)&(z<-.50)]*=.6;c[(np.abs(np.abs(x)-.22)<.006)&(z<-.50)]*=.7;return c
+   ch.add('thermal box',lambda p:rbox(p,[0,1.30,-.39],[.23,.22,.17],.03),[[-.30,1.01,-.63],[.30,1.59,-.15]],[.98,.80,.12],15,PLASTIC,.011,boxpaint)
+   data=ch.v[-1];x,y,z=data[:,:3].T;ink=[.08,.08,.10];back=(z<-.56)&(np.abs(x)<.228)
    stamp(data,'БОМЖ',-.165,1.44,.022,back&(y>1.32)&(y<1.46),ink);stamp(data,'СТАВКА',-.201,1.28,.0175,back&(y>1.18)&(y<1.30),ink)
-   top=(y>1.508)&(np.abs(x)<.228)
-   stamp(data,'БОМЖ',-.165,-.315,.022,top&(z<-.30)&(z>-.44),ink,rowaxis=2);stamp(data,'СТАВКА',-.201,-.445,.0175,top&(z<-.43)&(z>-.56),ink,rowaxis=2)
+   top=(y>1.52)&(np.abs(x)<.228)
+   stamp(data,'БОМЖ',-.165,-.285,.022,top&(z<-.27)&(z>-.41),ink,rowaxis=2);stamp(data,'СТАВКА',-.201,-.415,.0175,top&(z<-.40)&(z>-.52),ink,rowaxis=2)
    for side in [-1,1]:
     ch.add('box strap',lambda p,s=side:cap(p,[s*.15,1.50,-.14],[s*.17,1.36,-.34],.02),[[side*.17-.06,1.30,-.40],[side*.15+.06,1.54,-.08]],[.12,.12,.14],1,MATTE,.0105)
    ch.add('strap clip',lambda p:rbox(p,[-.18,1.19,.20],[.03,.024,.012],.005),[[-.24,1.15,.16],[-.12,1.24,.25]],[.25,.25,.28],'coat',PLASTIC,.0055,None,True)
@@ -539,7 +543,7 @@ def build(kind,outfit=1):
   ch.add('chin strap',lambda p:union(cap(p,[-.25,2.07,.02],[-.115,1.735,.20],.011),cap(p,[.25,2.07,.02],[.115,1.735,.20],.011),k=.01),[[-.29,1.70,-.02],[.29,2.10,.24]],[.10,.10,.12],2,MATTE,.006,None,True,head=True)
   def boxpaint(p,c):
    x,y,z=p.T;c[(np.abs(y-1.40)<.006)&(z<-.45)]*=.6;c[(np.sqrt(x**2+(y-1.25)**2)<.07)&(z<-.5)]=[.96,.96,.94];c[(np.sqrt(x**2+(y-1.25)**2)<.045)&(z<-.5)]=[.20,.20,.22];return c
-  ch.add('thermal box',lambda p:rbox(p,[0,1.29,-.40],[.20,.19,.125],.03),[[-.24,1.08,-.55],[.24,1.50,-.25]],[.96,.78,.18],15,PLASTIC,.012,boxpaint)
+  ch.add('thermal box',lambda p:rbox(p,[0,1.29,-.37],[.20,.19,.15],.03),[[-.27,1.03,-.59],[.27,1.55,-.15]],[.96,.78,.18],15,PLASTIC,.012,boxpaint)
   for side in [-1,1]:
    ch.add('box strap',lambda p,s=side:cap(p,[s*.15,1.50,-.14],[s*.16,1.32,-.36],.02),[[side*.16-.06,1.28,-.40],[side*.15+.06,1.54,-.08]],[.12,.12,.14],1,MATTE,.0105)
   ch.add('strap clip',lambda p:rbox(p,[-.18,1.19,.20],[.03,.024,.012],.005),[[-.24,1.15,.16],[-.12,1.24,.25]],[.25,.25,.28],'coat',PLASTIC,.0055,None,True)
@@ -550,10 +554,14 @@ if __name__=='__main__':
  (OUT/'skins').mkdir(exist_ok=True)
  if len(sys.argv)>1:   # e.g. `python build_characters.py skin2` rebuilds one Boris outfit file only
   mp=OUT/'art-source'/'models.json';meta=json.loads(mp.read_text()) if mp.exists() else []
+  cd=OUT/'characters-data.js';head,_,body=cd.read_text(encoding='utf-8').partition('window.PIVNOY_MODELS=');models=json.loads(body.strip().rstrip(';'))
   for arg in sys.argv[1:]:
+   if not arg.startswith('skin'):   # police / rider / rider_far: replace that mesh inside characters-data.js
+    blobs,m=build(arg).export();models['meshes'][arg]=blobs;meta=[e for e in meta if e['name']!=m['name']]+[m];continue
    i=int(arg.replace('skin',''));blobs,m=build('boris',i).export('skin',f'_skin{i}')
-   meta=[e for e in meta if e['name']!=m['name']]+[m];mp.write_text(json.dumps(meta,indent=2))
+   meta=[e for e in meta if e['name']!=m['name']]+[m]
    (OUT/'skins'/f'boris-{i}.js').write_text(f'/* Boris outfit {i}. Rebuild with art-source/build_characters.py. */\nwindow.PIVNOY_SKINS=window.PIVNOY_SKINS||{{}};window.PIVNOY_SKINS[{i}]='+json.dumps(blobs)+';\n')
+  mp.write_text(json.dumps(meta,indent=2));cd.write_text(head+'window.PIVNOY_MODELS='+json.dumps(models,separators=(',',':'))+';'+chr(10),encoding='utf-8')
   sys.exit(0)
  data={};meta=[]
  for name in ['police','rider','rider_far']:
