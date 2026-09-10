@@ -22,6 +22,8 @@ function rig(t,slide,pose,kind){
  // Chest counters the hips and turns into the lane change; the head stays level, nods with the bounce and leads the turn.
  rot[1]=[.045+.10*speed+air*.07,Math.sin(t)*.035*(idle?.2:1)*G.sway+gait*.08+lean*.22,-gait*.03];
  rot[2]=[-.035-.05*speed-bounce*.03,Math.sin(t*.32)*.055*G.sway+lean*.15,lean*.09-gait*.02];
+ // Glance over a shoulder (pose.look, signed, + = right): the chest twists a little, the head a lot and tilts into the turn.
+ const look=pose.look||0;if(look){const a=Math.abs(look),s=Math.sign(look);rot[1][1]+=s*a*.60;rot[2][1]+=s*a*1.20;rot[2][0]-=a*.08;rot[2][2]-=s*a*.09;}
  for(const [side,ua,fa,th,sh,ft]of SIDES){
   const swing=gait*side,armSwing=swing*G.arm,armLag=lag*side*G.arm,fwd=Math.max(0,swing),back=Math.max(0,-swing);
   // Elbows flex as the arm comes forward; a stumble throws the arms up and out.
@@ -79,6 +81,17 @@ function rig(t,slide,pose,kind){
   for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[-2.35,0,side*.5],rise);rot[fa]=mix3(rot[fa],[-.55,0,0],rise);rot[th]=mix3(rot[th],[0,0,side*.08],rise);rot[sh]=mix3(rot[sh],[1.57,0,0],rise);rot[ft]=mix3(rot[ft],[.9,0,0],rise);}
   if(nb>15){rot[15]=mix3(rot[15],[0,0,0],rise);rot[16]=mix3(rot[16],[.05,0,0],rise);rot[17]=mix3(rot[17],[0,0,0],rise);}
  }
+ // Semyonych's street repertoire. knock: clotheslined by a bar, head and chest thrown back, arms flung up.
+ const knock=pose.knock||0;
+ if(knock>0){rot[0][0]-=.10*knock;rot[1][0]-=.42*knock;rot[2][0]-=.60*knock;off[0][1]-=.05*knock;for(const [side,ua,fa]of SIDES){rot[ua]=mix3(rot[ua],[-2.05,0,side*.55],knock);rot[fa]=mix3(rot[fa],[-.55,0,0],knock);}}
+ // winded: bent double after giving up, hands on the knees, shoulders heaving.
+ const winded=pose.winded||0;
+ if(winded>0){const heave=Math.sin(t*5.5)*.04;rot[0][0]+=.12*winded;rot[1][0]+=(.58+heave)*winded;rot[2][0]-=.30*winded;off[0][1]-=.11*winded;for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[-.80,0,side*.22],winded);rot[fa]=mix3(rot[fa],[-.12,0,0],winded);rot[th]=mix3(rot[th],[-.32,0,side*.06],winded);rot[sh]=mix3(rot[sh],[.58,0,0],winded);rot[ft]=mix3(rot[ft],[0,0,0],winded);}}
+ // guard: waiting at the kerb with both hands on the belt; whistle: right hand up to the mouth.
+ const guard=pose.guard||0;
+ if(guard>0){for(const [side,ua,fa]of SIDES){rot[ua]=mix3(rot[ua],[.35,0,side*.35],guard);rot[fa]=mix3(rot[fa],[-1.75,0,-side*.55],guard);}rot[1][0]-=.06*guard;rot[2][0]+=.04*guard;}
+ const whistle=pose.whistle||0;
+ if(whistle>0){rot[6]=mix3(rot[6],[-1.75,0,.40],whistle);rot[7]=mix3(rot[7],[-1.55,0,.10],whistle);rot[2][0]-=.15*whistle;}
  if(pose.arrest&&kind==='police'){
   // Chest out, left hand on the belt, right forefinger wagging.
   rot[1][0]=-.12;rot[2]=[-.12,Math.sin(t*.9)*.06,.08];

@@ -4,3 +4,5 @@
 h1{font-size:clamp(43px,11vw,62px);letter-spacing:-2px}.brand{letter-spacing:1.2px;font-size:14px}#powers{line-height:1.5}#toast{top:29%;font-size:18px}.sheet p,p{font-size:16px}.hint{font-size:14px}#panel{overflow-y:auto}.shop-item small{font-size:14px}#game:has(#hud:not([hidden])) .vignette{background:linear-gradient(#11232f88,transparent 25%,transparent 78%,#10232eaa)}
 
 .caught{animation:caught-in .9s both}@keyframes caught-in{0%,55%{opacity:0;transform:translateY(25px)}100%{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.caught{animation:none}}
+/* Touch devices steer by swipes; the arrow buttons are for mouse users only. */
+@media(pointer:coarse){#controls{display:none!important}}
