@@ -1,8 +1,8 @@
 [
   {
     "name": "boris",
-    "vertices": 72556,
-    "triangles": 144948,
+    "vertices": 71500,
+    "triangles": 142778,
     "chunks": 2,
     "parts": [
       {
@@ -37,8 +37,8 @@
       },
       {
         "name": "face",
-        "vertices": 9850,
-        "triangles": 19700
+        "vertices": 8794,
+        "triangles": 17530
       },
       {
         "name": "eye",
@@ -119,8 +119,8 @@
   },
   {
     "name": "police",
-    "vertices": 67130,
-    "triangles": 134064,
+    "vertices": 66035,
+    "triangles": 131804,
     "chunks": 2,
     "parts": [
       {
@@ -155,8 +155,8 @@
       },
       {
         "name": "face",
-        "vertices": 10068,
-        "triangles": 20132
+        "vertices": 8973,
+        "triangles": 17872
       },
       {
         "name": "eye",
@@ -227,8 +227,8 @@
   },
   {
     "name": "rider",
-    "vertices": 61370,
-    "triangles": 122252,
+    "vertices": 60431,
+    "triangles": 120322,
     "chunks": 1,
     "parts": [
       {
@@ -263,8 +263,8 @@
       },
       {
         "name": "face",
-        "vertices": 8822,
-        "triangles": 17640
+        "vertices": 7885,
+        "triangles": 15714
       },
       {
         "name": "eye",
@@ -303,8 +303,8 @@
       },
       {
         "name": "chin strap",
-        "vertices": 2478,
-        "triangles": 4948
+        "vertices": 2476,
+        "triangles": 4944
       },
       {
         "name": "thermal box",
@@ -330,8 +330,8 @@
   },
   {
     "name": "rider_far",
-    "vertices": 8208,
-    "triangles": 16260,
+    "vertices": 8097,
+    "triangles": 16018,
     "chunks": 1,
     "parts": [
       {
@@ -366,8 +366,8 @@
       },
       {
         "name": "face",
-        "vertices": 1272,
-        "triangles": 2540
+        "vertices": 1161,
+        "triangles": 2298
       },
       {
         "name": "eye",

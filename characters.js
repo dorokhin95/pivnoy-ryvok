@@ -92,18 +92,18 @@ function rig(t,slide,pose,kind){
 class CharacterRenderer{
  constructor(gl){this.gl=gl;this.queue=[];this.meshes={};const NB=window.PIVNOY_MODELS.parents.length;const vs=`precision highp float;
 attribute vec3 position;attribute vec3 normal;attribute vec3 albedo;attribute vec4 joints;attribute vec4 weights;attribute float material;attribute float ao;
-uniform mat4 bones[${NB}];uniform vec3 origin;uniform float aspect;uniform float yaw;uniform vec3 tint;uniform float stretch;
+uniform mat4 bones[${NB}];uniform vec3 origin;uniform float aspect;uniform float yaw;uniform vec3 tint;uniform float stretch;uniform mediump float shadowPass;
 varying vec3 vNormal;varying vec3 vColor;varying vec3 vWorld;varying vec3 vRest;varying float vMaterial;varying float vFog;varying float vAO;
 void main(){vec3 pos=position*(1./8192.);mat4 skin=bones[int(joints.x)]*weights.x+bones[int(joints.y)]*weights.y+bones[int(joints.z)]*weights.z+bones[int(joints.w)]*weights.w;vec3 p=(skin*vec4(pos,1.)).xyz;vec3 n=mat3(skin)*normal;
 p.y*=1.+stretch;p.xz*=1.-stretch*.5;
-mat2 turn=mat2(cos(yaw),-sin(yaw),sin(yaw),cos(yaw));p.xz=turn*p.xz;n.xz=turn*n.xz;p+=origin;
+mat2 turn=mat2(cos(yaw),-sin(yaw),sin(yaw),cos(yaw));p.xz=turn*p.xz;n.xz=turn*n.xz;p+=origin;if(shadowPass>.5){vec3 L=normalize(vec3(-.42,.78,-.50));p=p-L*((p.y-.045)/L.y);}
 vWorld=p;vRest=pos;vNormal=normalize(n);vAO=ao;vMaterial=material;
 vColor=albedo*((material>3.5&&material<5.5)?tint:vec3(1.));
-vec3 v=p-vec3(0.,5.2,-8.);float y=v.y*.951+v.z*.309;float z=-v.y*.309+v.z*.951;gl_Position=vec4(v.x*1.64/aspect,y*1.64,z*1.002-.2002,z);vFog=clamp((z-38.)/55.,0.,1.);}`;
+vec3 v=p-vec3(0.,5.2,-8.);float y=v.y*.951+v.z*.309;float z=-v.y*.309+v.z*.951;gl_Position=vec4(v.x*1.64/aspect,y*1.64,z*1.002-.2002,z);vFog=clamp((z-30.)/70.,0.,1.);}`;
  const fs=`precision mediump float;varying vec3 vNormal;varying vec3 vColor;varying vec3 vWorld;varying vec3 vRest;varying float vMaterial;varying float vFog;varying float vAO;
 float hash(vec3 q){return fract(sin(dot(q,vec3(12.9898,78.233,37.719)))*43758.5453);}
-float band(float lo,float hi){return step(lo,vMaterial)*(1.-step(hi,vMaterial));}
-void main(){
+float band(float lo,float hi){return step(lo,vMaterial)*(1.-step(hi,vMaterial));}uniform mediump float shadowPass;
+void main(){ if(shadowPass>.5){gl_FragColor=vec4(.02,.04,.07,.46);return;}
  vec3 n=normalize(vNormal),L=normalize(vec3(-.42,.78,-.50)),eye=normalize(vec3(0.,5.2,-8.)-vWorld),r=vRest;
  float isSkin=band(.5,1.5),isEye=band(1.5,2.5),isLeather=band(2.5,3.5),isCloth=band(3.5,4.5),isQuilt=band(4.5,5.5),isKnit=band(5.5,6.5),isMetal=band(6.5,7.5),isHair=band(7.5,8.5),isRubber=band(8.5,9.5),isPlastic=step(9.5,vMaterial);
  // Procedural micro-texture in rest space: fabric grain, quilting seams, knit ribs, hair strands.
@@ -132,21 +132,23 @@ void main(){
  float rim=pow(1.-max(0.,dot(n,eye)),3.);
  color+=vec3(.30,.44,.50)*rim*.30*ao;
  color=color*1.08/(1.+color*.09);
- color=mix(color,vec3(.48,.67,.72),vFog);
+ color=mix(color,vec3(.68,.79,.87),vFog);
  gl_FragColor=vec4(color,1.);
 }`;
  const compile=(type,source)=>{const sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;};
  this.program=gl.createProgram();gl.attachShader(this.program,compile(gl.VERTEX_SHADER,vs));gl.attachShader(this.program,compile(gl.FRAGMENT_SHADER,fs));gl.linkProgram(this.program);if(!gl.getProgramParameter(this.program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(this.program));
  this.attrs=[['position',3,0,gl.SHORT,false],['normal',3,6,gl.BYTE,true],['albedo',3,9,gl.UNSIGNED_BYTE,true],['joints',4,12,gl.UNSIGNED_BYTE,false],['weights',4,16,gl.UNSIGNED_BYTE,true],['material',1,20,gl.UNSIGNED_BYTE,false],['ao',1,21,gl.UNSIGNED_BYTE,true]].map(([n,size,offset,type,normalized])=>({loc:gl.getAttribLocation(this.program,n),size,offset,type,normalized}));
- this.uniforms=Object.fromEntries(['bones[0]','origin','aspect','yaw','tint','stretch'].map(n=>[n,gl.getUniformLocation(this.program,n)]));
+ this.uniforms=Object.fromEntries(['bones[0]','origin','aspect','yaw','tint','stretch','shadowPass'].map(n=>[n,gl.getUniformLocation(this.program,n)]));
  // Each character is a list of chunks (uint16 index limit); all chunks share the same bone matrices.
  for(const [kind,chunks]of Object.entries(window.PIVNOY_MODELS.meshes)){this.meshes[kind]=(Array.isArray(chunks)?chunks:[chunks]).map(encoded=>{const str=atob(encoded),raw=new Uint8Array(str.length);for(let i=0;i<str.length;i++)raw[i]=str.charCodeAt(i);const header=new DataView(raw.buffer),nv=header.getUint32(0,true),count=header.getUint32(4,true);if(raw.byteLength!==8+nv*STRIDE+count*2)throw Error('Invalid character asset');const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,new Uint8Array(raw.buffer,8,nv*STRIDE),gl.STATIC_DRAW);const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(raw.buffer.slice(8+nv*STRIDE,8+nv*STRIDE+count*2)),gl.STATIC_DRAW);return {vb,ib,count};});}
  }
  add(kind,x,y,z,t,c,slide,pose){this.queue.push({kind,x,y,z,t,c,slide,pose});}
- draw(aspect){const gl=this.gl,u=this.uniforms;gl.useProgram(this.program);gl.uniform1f(u.aspect,aspect);const base=[.34,.39,.23];
-  for(const a of this.queue){const parts=this.meshes[a.kind==='rider'&&a.z>28?'rider_far':a.kind];
-   gl.uniformMatrix4fv(u['bones[0]'],false,rig(a.t,a.slide,a.pose,a.kind));gl.uniform3f(u.origin,a.x,a.y,a.z);gl.uniform1f(u.yaw,a.pose.yaw||0);gl.uniform1f(u.stretch,a.pose.roll>0?0:(a.pose.stretch||0));gl.uniform3f(u.tint,...(a.kind==='boris'?a.c.map((v,i)=>v/base[i]):[1,1,1]));
-   for(const m of parts){gl.bindBuffer(gl.ARRAY_BUFFER,m.vb);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.ib);for(const at of this.attrs){gl.enableVertexAttribArray(at.loc);gl.vertexAttribPointer(at.loc,at.size,at.type,at.normalized,STRIDE,at.offset);}gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_SHORT,0);}}
+ draw(aspect,shadows=false){const gl=this.gl,u=this.uniforms;gl.useProgram(this.program);gl.uniform1f(u.aspect,aspect);gl.uniform1f(u.shadowPass,0);const base=[.34,.39,.23];
+  const emit=a=>{const parts=this.meshes[a.kind==='rider'&&a.z>28?'rider_far':a.kind];gl.uniformMatrix4fv(u['bones[0]'],false,a.bones);gl.uniform3f(u.origin,a.x,a.y,a.z);gl.uniform1f(u.yaw,a.pose.yaw||0);gl.uniform1f(u.stretch,a.pose.roll>0?0:(a.pose.stretch||0));gl.uniform3f(u.tint,...(a.kind==='boris'?a.c.map((v,i)=>v/base[i]):[1,1,1]));
+   for(const m of parts){gl.bindBuffer(gl.ARRAY_BUFFER,m.vb);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.ib);for(const at of this.attrs){gl.enableVertexAttribArray(at.loc);gl.vertexAttribPointer(at.loc,at.size,at.type,at.normalized,STRIDE,at.offset);}gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_SHORT,0);}};
+  for(const a of this.queue){a.bones=rig(a.t,a.slide,a.pose,a.kind);emit(a);}
+  // Shadow pass: the same skinned meshes flattened onto the road along the sun, blended once per pixel via the stencil.
+  if(shadows&&this.queue.length){gl.uniform1f(u.shadowPass,1);gl.enable(gl.STENCIL_TEST);gl.stencilFunc(gl.EQUAL,0,0xff);gl.stencilOp(gl.KEEP,gl.KEEP,gl.INCR);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);for(const a of this.queue)emit(a);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.STENCIL_TEST);gl.uniform1f(u.shadowPass,0);}
   for(const a of this.attrs)gl.disableVertexAttribArray(a.loc);this.queue.length=0;}
 }
 window.CharacterRenderer=CharacterRenderer;window.PivnoyRig=rig;
