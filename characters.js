@@ -63,17 +63,27 @@ function rig(t,slide,pose,kind){
   const k=slide;off[0][1]-=.14*k;rot[1][0]+=.28*k;rot[2][0]-=.15*k;
   for(const [side,ua,fa,th,sh]of SIDES){rot[th][0]-=.45*k;rot[sh][0]+=.75*k;rot[ua][0]-=.2*k;rot[ua][2]+=side*.35*k;}
  }
- if(pose.arrest){
-  if(kind==='police'){
-   // Chest out, left hand on the belt, right forefinger wagging.
-   rot[1][0]=-.12;rot[2]=[-.12,Math.sin(t*.9)*.06,.08];
-   rot[3]=[.35,0,-.35];rot[4]=[-1.75,0,.55];
-   rot[6]=[-1.75,0,.40];rot[7]=[-1.35+Math.sin(t*7)*.22,0,0];
-  }else{
-   // Caught: hands up, head hung, shoulders heaving.
-   rot[1][0]=.12+Math.sin(t*1.6)*.02;rot[2][0]=.42;
-   for(const [side,ua,fa]of [[-1,3,4],[1,6,7]]){rot[ua]=[-2.35,0,side*.5];rot[fa]=[-.55,0,0];}
-  }
+ // Knocked down: pitch forward onto the ground, arms out to break the fall, legs trailing, gear flopping.
+ const fall=pose.fall||0,rise=(pose.arrest&&kind!=='police')?1:(pose.rise||0);
+ if(fall>0){
+  rot[0]=mix3(rot[0],[1.52,0,Math.sin(t*9)*.03*(1-fall)],fall);off[0]=[0,lerp(off[0][1],-.72,fall),lerp(off[0][2],.30,fall)];
+  rot[1]=mix3(rot[1],[-.25,0,0],fall);rot[2]=mix3(rot[2],[-.62,.15,0],fall);
+  for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[-2.3,0,side*.55],fall);rot[fa]=mix3(rot[fa],[-.35,0,0],fall);rot[th]=mix3(rot[th],[.25,0,side*.18],fall);rot[sh]=mix3(rot[sh],[.45,0,0],fall);rot[ft]=mix3(rot[ft],[.30,0,0],fall);}
+  if(nb>15){rot[15]=mix3(rot[15],[-.45,0,0],fall);rot[16]=mix3(rot[16],[-.30,0,0],fall);rot[17]=mix3(rot[17],[0,0,.1],fall);}
+ }
+ // Hauled up onto his knees: hands up, head hung, shoulders heaving.
+ if(rise>0){
+  const sway=Math.sin(t*1.6)*.02;
+  rot[0]=mix3(rot[0],[.08,0,0],rise);off[0]=[0,lerp(off[0][1],-.41,rise),lerp(off[0][2],0,rise)];
+  rot[1]=mix3(rot[1],[.14+sway,0,0],rise);rot[2]=mix3(rot[2],[.40,Math.sin(t*.7)*.08,0],rise);
+  for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[-2.35,0,side*.5],rise);rot[fa]=mix3(rot[fa],[-.55,0,0],rise);rot[th]=mix3(rot[th],[0,0,side*.08],rise);rot[sh]=mix3(rot[sh],[1.57,0,0],rise);rot[ft]=mix3(rot[ft],[.9,0,0],rise);}
+  if(nb>15){rot[15]=mix3(rot[15],[0,0,0],rise);rot[16]=mix3(rot[16],[.05,0,0],rise);rot[17]=mix3(rot[17],[0,0,0],rise);}
+ }
+ if(pose.arrest&&kind==='police'){
+  // Chest out, left hand on the belt, right forefinger wagging.
+  rot[1][0]=-.12;rot[2]=[-.12,Math.sin(t*.9)*.06,.08];
+  rot[3]=[.35,0,-.35];rot[4]=[-1.75,0,.55];
+  rot[6]=[-1.75,0,.40];rot[7]=[-1.35+Math.sin(t*7)*.22,0,0];
  }
  const world=[],out=new Float32Array(nb*16);
  for(let i=0;i<nb;i++){const parent=data.parents[i],p=rest[i],rel=p.map((v,k)=>v-(parent<0?0:rest[parent][k])+off[i][k]);world[i]=matrix(rel,...rot[i]);if(parent>=0)world[i]=mul(world[parent],world[i]);const inverse=matrix(p.map(v=>-v));out.set(mul(world[i],inverse),i*16);}
