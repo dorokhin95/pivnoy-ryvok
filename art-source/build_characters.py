@@ -3,7 +3,11 @@ Surface nets extract a continuous skin from sculpt fields. Garment add-ons (coll
 soles, hat brims, hair) are solid layers fused into their base field before meshing, so every garment is one
 outer surface; each vertex then takes the colour/material of the add-on it lies on. Per-vertex ambient
 occlusion is baked against the whole character's union field.
-Run from this folder to rebuild ../characters-data.js and the editable mesh metadata.
+
+Boris is built once per outfit (skin). His head, beard and hands are shared and exported into
+../characters-data.js; each outfit's garments, footwear, headwear and bag go to ../skins/boris-N.js and are
+loaded on demand by the game.
+Run from this folder to rebuild everything and the editable mesh metadata.
 """
 import numpy as np, json, base64, struct
 from pathlib import Path
@@ -26,6 +30,18 @@ MATTE,SKIN,EYE,LEATHER,CLOTH,QUILT,KNIT,METAL,HAIR,RUBBER,PLASTIC=range(11)
 HS=.80;HC=np.array([0,1.60,0],dtype='f4')
 def headpt(p):return HC+(p-HC)/HS
 def headify(fn):return lambda p:fn(headpt(p))*HS
+# 3x5 bitmap glyphs for painted lettering (rows top to bottom).
+FONT={'Б':'111100111101111','О':'111101101101111','М':'101111111101101','Ж':'101111010111101','С':'111100100100111','Т':'111010010010010','А':'111101111101101','В':'111101110101111','К':'101101110101101',
+      'П':'111101101101101','Л':'011101101101101','И':'101101111111101','Ц':'101101101111001','Я':'111101111011101','A':'111101111101101','B':'111101110101111','I':'010010010010010','S':'111100111001111'}
+def stamp(data,text,x0,y0,cell,mask,color,rowaxis=1):
+ """Paint `text` onto already-meshed vertex data (columns 6:9 are colour) inside `mask`, glyph origin at (x0,y0) top-left.
+ rowaxis=1 writes on a vertical face (rows down -y), rowaxis=2 on a horizontal face seen from behind (rows toward the camera, -z)."""
+ x,y=data[:,0],data[:,rowaxis]
+ for g,ch in enumerate(text):
+  for k,bit in enumerate(FONT[ch]):
+   if bit=='1':
+    xx=x0+g*cell*4+(k%3)*cell;yy=y0-(k//3)*cell
+    data[mask&(np.abs(x-xx)<cell*.55)&(np.abs(y-yy)<cell*.55),6:9]=color
 
 def sm(a,b,k=.045):
  h=np.maximum(k-np.abs(a-b),0)/k
@@ -113,8 +129,8 @@ def weights(p,part):
  return idx.astype('f4'),ww.astype('f4')
 
 class Character:
- def __init__(self,name):self.name=name;self.far=name.endswith('_far');self.v=[];self.f=[];self.fns=[];self.parts=[]
- def add(self,name,fn,bounds,color,part,mat=MATTE,step=.02,paint=None,fine=False,decals=(),head=False):
+ def __init__(self,name):self.name=name;self.far=name.endswith('_far');self.v=[];self.f=[];self.fns=[];self.parts=[];self.shared=[]
+ def add(self,name,fn,bounds,color,part,mat=MATTE,step=.02,paint=None,fine=False,decals=(),head=False,shared=False):
   if self.far and fine:return
   if head:
    fn0,paint0=fn,paint;fn=headify(fn0);paint=(lambda p,c:paint0(headpt(p),c)) if paint0 else None
@@ -132,7 +148,7 @@ class Character:
    for i,(_,col,m) in enumerate(decals):
     sel=hit&(owner==i);c[sel]=np.array(col,'f4')*(1+grain[sel,None]);mats[sel]=m
   ids,w=weights(p,part);data=np.column_stack((p,n,c,ids,w,mats)).astype('f4')
-  offset=sum(len(a) for a in self.v);self.v.append(data);self.f.append(f+offset);self.fns.append(fn);self.parts.append(dict(name=name,vertices=len(p),triangles=len(f)))
+  offset=sum(len(a) for a in self.v);self.v.append(data);self.f.append(f+offset);self.fns.append(fn);self.parts.append(dict(name=name,vertices=len(p),triangles=len(f)));self.shared.append(shared)
  def bake_ao(self,P,N):
   """Screen-space-free AO: probe the union of every part's field along the normal and a tilted cone."""
   def field(q):
@@ -150,14 +166,16 @@ class Character:
    for d,w in [(.05,.07),(.12,.08)]:
     s=field(P+dirs*d);occ+=w*np.clip((d-s)/d,0,1)
   return np.clip(1-occ*1.1,0,1)
- def export(self):
-  v=np.concatenate(self.v);f=np.concatenate(self.f)
-  ao=self.bake_ao(v[:,:3],v[:,3:6])
-  sx,sy,sz=scale_for(self.name)
-  v[:,0]*=sx;v[:,1]*=sy;v[:,2]*=sz
-  v[:,3]/=sx;v[:,4]/=sy;v[:,5]/=sz;v[:,3:6]/=np.maximum(1e-9,np.linalg.norm(v[:,3:6],axis=1,keepdims=True))
-  v=np.column_stack((v,ao)).astype('f4')
-  assert np.isfinite(v).all();assert np.allclose(v[:,13:17].sum(1),1)
+ def export(self,which='all',suffix=''):
+  """which: 'all' every part, 'shared' only shared parts, 'skin' only outfit parts. AO is always baked against everything."""
+  if not hasattr(self,'_baked'):
+   v=np.concatenate(self.v);ao=self.bake_ao(v[:,:3],v[:,3:6])
+   sx,sy,sz=scale_for(self.name)
+   v[:,0]*=sx;v[:,1]*=sy;v[:,2]*=sz
+   v[:,3]/=sx;v[:,4]/=sy;v[:,5]/=sz;v[:,3:6]/=np.maximum(1e-9,np.linalg.norm(v[:,3:6],axis=1,keepdims=True))
+   self._baked=np.column_stack((v,ao)).astype('f4')
+   assert np.isfinite(self._baked).all();assert np.allclose(self._baked[:,13:17].sum(1),1)
+  v=self._baked
   def pack(vc,fc):
    packed=np.zeros((len(vc),22),dtype='u1')
    packed[:,0:6]=np.clip(np.rint(vc[:,:3]*8192),-32767,32767).astype('<i2').copy().view('u1').reshape(-1,6)
@@ -167,101 +185,185 @@ class Character:
    qw=np.rint(vc[:,13:17]*255).astype('i2');qw[:,0]+=255-qw.sum(1);packed[:,16:20]=qw.astype('u1')
    packed[:,20]=vc[:,17].astype('u1');packed[:,21]=np.clip(np.rint(vc[:,18]*255),0,255).astype('u1')
    return struct.pack('<II',len(vc),len(fc)*3)+packed.tobytes()+fc.astype('<u2').tobytes()
+  counts=[len(a) for a in self.v];offsets=np.cumsum([0]+counts[:-1])
+  pick=[i for i in range(len(counts)) if which=='all' or (which=='shared')==self.shared[i]]
   # Index buffers are uint16, so whole parts are grouped into chunks of <65535 vertices.
-  counts=[len(a) for a in self.v];offsets=np.cumsum([0]+counts[:-1]);chunks=[];cur=[];total=0
-  for i,c in enumerate(counts):
-   if total+c>65000 and cur:chunks.append(cur);cur=[];total=0
-   cur.append(i);total+=c
-  chunks.append(cur);blobs=[]
+  chunks=[];cur=[];total=0
+  for i in pick:
+   if total+counts[i]>65000 and cur:chunks.append(cur);cur=[];total=0
+   cur.append(i);total+=counts[i]
+  if cur:chunks.append(cur)
+  blobs=[]
   for group in chunks:
-   base=offsets[group[0]];n=sum(counts[i] for i in group)
-   vc=v[base:base+n];fc=np.concatenate([self.f[i] for i in group])-base
-   assert fc.min()>=0 and fc.max()<n<65535,(self.name,n)
+   vc=np.concatenate([v[offsets[i]:offsets[i]+counts[i]] for i in group]);base=0;fcs=[]
+   for i in group:fcs.append(self.f[i]-offsets[i]+base);base+=counts[i]
+   fc=np.concatenate(fcs);assert fc.min()>=0 and fc.max()<len(vc)<65535,(self.name,len(vc))
    blobs.append(base64.b64encode(pack(vc,fc)).decode())
-  np.savez_compressed(OUT/'art-source'/f'{self.name}.npz',vertices=v,faces=f)
-  print(self.name,len(v),'vertices',len(f),'triangles',len(blobs),'chunk(s)',flush=True)
-  return blobs,dict(name=self.name,vertices=len(v),triangles=len(f),chunks=len(blobs),parts=self.parts)
+  nverts=sum(counts[i] for i in pick);ntris=sum(len(self.f[i]) for i in pick)
+  np.savez_compressed(OUT/'art-source'/f'{self.name}{suffix}.npz',vertices=np.concatenate([v[offsets[i]:offsets[i]+counts[i]] for i in pick]))
+  print(self.name+suffix,nverts,'vertices',ntris,'triangles',len(blobs),'chunk(s)',flush=True)
+  return blobs,dict(name=self.name+suffix,vertices=int(nverts),triangles=int(ntris),chunks=len(blobs),parts=[self.parts[i] for i in pick])
 
-def build(kind):
+def build(kind,outfit=1):
  cop=kind=='police';rider=kind.startswith('rider');boris=not cop and not rider;ch=Character(kind)
  skin=[.80,.55,.40] if cop else [.86,.63,.47] if rider else [.78,.52,.36]
- cloth=np.array([.16,.22,.37] if cop else [.92,.38,.12] if rider else [.34,.39,.23])
- pants=[.14,.18,.30] if cop else [.15,.16,.20] if rider else [.20,.22,.28]
- coat_mat=CLOTH if not boris else QUILT;gold=[.86,.70,.27];black=[.06,.06,.07]
+ gold=[.86,.70,.27];black=[.06,.06,.07];white=[.92,.92,.90]
+ # Boris outfits: 0 ragged tee & shorts, 1 quilted vatnik, 2 "Bomzhstavka" courier, 3 Abibas tracksuit.
+ if boris:
+  cloth=np.array([[.82,.80,.74],[.34,.39,.23],[.98,.78,.10],[.09,.09,.11]][outfit]);pants=[[.36,.35,.38],[.20,.22,.28],[.11,.11,.13],[.09,.09,.11]][outfit]
+  coat_mat=QUILT if outfit==1 else CLOTH
+ else:
+  cloth=np.array([.16,.22,.37] if cop else [.92,.38,.12]);pants=[.14,.18,.30] if cop else [.15,.16,.20];coat_mat=CLOTH
  tw=.35 if cop else .26 if rider else .31;td=.225 if cop else .205 if rider else .22
  su=(.17,.135) if cop else (.125,.098) if rider else (.15,.122)
  sl=(.133,.108) if cop else (.096,.078) if rider else (.12,.086)
  # ---------------------------------------------------------------- torso + sleeves (one garment surface)
- def coat0(p):
-  x,y,z=p[...,0],p[...,1],p[...,2]
+ def torso_base(p):
   torso=union(ell(p,[0,1.23,-.015],[tw,.36,td]),ell(p,[0,1.42,-.015],[tw+.03,.17,td+.012]),k=.08)
   if boris:torso=sm(torso,ell(p,[0,1.09,.05],[tw*.86,.16,td*.92]),.07)
   if cop:torso=sm(torso,ell(p,[0,1.12,.03],[tw*.9,.17,td*.96]),.07)
+  return torso
+ def sleeves(p,rm=1.0,short=False):
+  d=None
   for side in [-1,1]:
-   sleeve=union(cap(p,[side*.31,1.46,0],[side*.51,1.17,.015],su[0],su[1]),cap(p,[side*.51,1.17,.015],[side*.625,.96,.03],sl[0],sl[1]),k=.06)
-   torso=sm(torso,sleeve,.06)
+   if short:s=cap(p,[side*.31,1.46,0],[side*.44,1.27,.01],su[0]*rm,su[1]*1.06*rm)
+   else:s=union(cap(p,[side*.31,1.46,0],[side*.51,1.17,.015],su[0]*rm,su[1]*rm),cap(p,[side*.51,1.17,.015],[side*.625,.96,.03],sl[0]*rm,sl[1]*rm),k=.06)
+   d=s if d is None else np.minimum(d,s)
+  return d
+ def wrinkles(p):
+  x,y,z=p[...,0],p[...,1],p[...,2]
   wr=.0016*np.sin(y*83+x*14)*np.exp(-((y-.99)/.05)**2)+.002*np.sin(y*109-z*25)*np.exp(-((y-1.17)/.05)**2)*np.clip(np.abs(x)*3,0,1)
-  wr+=.0022*np.sin(y*140+x*20)*np.exp(-((y-1.17)/.06)**2)*np.clip((np.abs(x)-.40)*8,0,1)
-  return torso+wr
+  return wr+.0022*np.sin(y*140+x*20)*np.exp(-((y-1.17)/.06)**2)*np.clip((np.abs(x)-.40)*8,0,1)
+ def coat0(p):return sm(torso_base(p),sleeves(p),.06)+wrinkles(p)
  hip=[.325,.205,.225] if cop else [.255,.165,.178] if rider else [.295,.19,.205]
  th=(.168,.132) if cop else (.126,.098) if rider else (.151,.119)
  shn=(.133,.096) if cop else (.098,.070) if rider else (.12,.087)
- def legs0(p):
-  d=ell(p,[0,.89,0],hip)
-  for side in [-1,1]:d=sm(d,union(cap(p,[side*.16,.87,0],[side*.18,.52,.015],*th),cap(p,[side*.18,.53,.015],[side*.18,.17,.025],*shn),k=.055),.07)
-  y,z=p[...,1],p[...,2]
-  return d+.003*np.sin(y*110+z*25)*np.exp(-((y-.50)/.10)**2)+.002*np.sin(y*150)*np.exp(-((y-.25)/.08)**2)
+ def mk_legs(rm=1.0):
+  def f(p):
+   d=ell(p,[0,.89,0],[hip[0]*rm,hip[1],hip[2]*rm])
+   for side in [-1,1]:d=sm(d,union(cap(p,[side*.16,.87,0],[side*.18,.52,.015],th[0]*rm,th[1]*rm),cap(p,[side*.18,.53,.015],[side*.18,.17,.025],shn[0]*rm,shn[1]*rm),k=.055),.07)
+   y,z=p[...,1],p[...,2]
+   return d+.003*np.sin(y*110+z*25)*np.exp(-((y-.50)/.10)**2)+.002*np.sin(y*150)*np.exp(-((y-.25)/.08)**2)
+  return f
+ legs0=mk_legs()
  body=lambda p:np.minimum(coat0(p),legs0(p))
- addons=[]
- for side in [-1,1]:
-  addons.append((slab(coat0,lambda p,s=side:ell(p,[s*.625,.96,.03],[.11,.11,.11]),.013),cloth*.84,coat_mat))            # cuffs
- if boris:
-  addons.append((lambda p:ring(p,[0,0,0],.153,.024,1.535,1.605),cloth*.9,QUILT))                                          # stand collar
+ def sleeve_frame(p,side):
+  """(t along the sleeve, angle around it; 0 = top) for painting stripes and bands."""
+  a=np.array([side*.31,1.46,0],'f4');b=np.array([side*.625,.96,.03],'f4');d=b-a;L=float(np.linalg.norm(d));u=d/L
+  rel=p-a;t=rel@u;perp=rel-np.outer(t,u);up=np.array([0,1,0],'f4');up=up-up.dot(u)*u;up/=np.linalg.norm(up);sd=np.cross(u,up)
+  return t,np.arctan2(perp@sd,perp@up),L
+ # ---------------------------------------------------------------- Boris outfit 0: ragged tee, shorts, mismatched boots
+ if boris and outfit==0:
+  def shirt(p):
+   x,y,z=p[...,0],p[...,1],p[...,2]
+   d=sm(torso_base(p),sleeves(p,1.0,True),.06)+wrinkles(p)
+   d=np.maximum(d,(1.05+.03*np.sin(x*40)+.02*np.sin(z*55+1))-y)
+   for hc,hr in [([.12,1.25,.24],.045),([-.16,1.13,.23],.04),([.05,1.36,-.23],.035),([.24,1.40,.10],.03)]:d=cut(d,ell(p,hc,[hr,hr,hr]))
+   return d
+  def rag(p,c):
+   x,y,z=p.T;dirt=np.clip(np.sin(x*23+y*17)*np.sin(z*31-y*9),0,1);c*=1-.28*dirt[:,None];c[y<1.10]*=.82
+   for hc,hr in [([.12,1.25,.24],.045),([-.16,1.13,.23],.04),([.05,1.36,-.23],.035),([.24,1.40,.10],.03)]:
+    inside=np.sqrt((x-hc[0])**2+(y-hc[1])**2+(z-hc[2])**2)<hr*1.02;c[inside]=[.66,.44,.31]
+   c[(np.abs(x)<.006)&(z>.12)&(y>1.28)&(y<1.50)]*=.85
+   return c
+  ch.add('ragged tee',shirt,[[-.62,1.0,-.30],[.62,1.66,.32]],cloth,'coat',CLOTH,.016,rag)
+  ch.add('bare arms',lambda p:sleeves(p,.80),[[-.78,.82,-.16],[.78,1.62,.20]],skin,'coat',SKIN,.012)
+  ch.add('belly',lambda p:ell(p,[0,1.03,.02],[tw*.92,.15,td*.86]),[[-.32,.86,-.20],[.32,1.20,.24]],skin,'coat',SKIN,.014)
+  def shorts(p):
+   x,y,z=p[...,0],p[...,1],p[...,2]
+   return np.maximum(mk_legs(1.05)(p),(.57+.03*np.sin(x*50)+.02*np.sin(z*70))-y)
+  def shortpaint(p,c):
+   x,y,z=p.T;c[(np.abs(np.abs(x)-.29)<.01)]*=.8;c*=1-.18*np.clip(np.sin(x*19+z*23)*np.sin(y*31),0,1)[:,None];c[(y>1.0)]*=.75;return c
+  ch.add('ragged shorts',shorts,[[-.38,.50,-.26],[.38,1.09,.28]],pants,'legs',MATTE,.017,shortpaint)
+  ch.add('bare legs',mk_legs(.90),[[-.36,.06,-.24],[.36,1.0,.26]],skin,'legs',SKIN,.016,lambda p,c:(c.__setitem__((p[:,1]<.30),np.array(skin)*.82) or c))
+ elif boris and outfit==1:
+  addons=[]
   for side in [-1,1]:
-   addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.165,1.245,.25],[.075,.055,.2],.01),.013),cloth*.96,QUILT))      # chest pockets
-   addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.165,1.315,.25],[.082,.016,.2],.008),.02),cloth*.84,QUILT))       # pocket flaps
-  addons.append((slab(body,lambda p:yband(p,.975,1.025),.013),[.52,.42,.25],LEATHER))                                      # waist strap
- if cop:
-  for side in [-1,1]:
-   addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.30,1.60,-.01],[.09,.06,.05],.012),.017),[.14,.19,.33],CLOTH))      # epaulettes
-   addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.16,1.29,.25],[.075,.05,.2],.01),.013),cloth*.97,CLOTH))          # chest pockets
-   addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.16,1.355,.25],[.082,.016,.2],.008),.02),cloth*.86,CLOTH))        # pocket flaps
-   addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.21,1.02,.25],[.08,.06,.2],.012),.013),cloth*.95,CLOTH))          # hip pockets
-   addons.append((slab(coat0,lambda p,s=side:ell(p,[s*.065,1.53,.24],[.06,.045,.2]),.012),[.66,.72,.82],CLOTH))         # shirt collar
-  addons.append((slab(coat0,lambda p:rbox(p,[0,1.41,.25],[.022,.09,.2],.008),.012),[.38,.10,.13],CLOTH))                  # tie
-  addons.append((slab(coat0,lambda p:rbox(p,[.15,1.38,.25],[.022,.028,.2],.006),.014),gold,METAL))                      # badge
-  for k in range(4):addons.append((slab(coat0,lambda p,yy=1.06+k*.095:ell(p,[0,yy,.25],[.015,.015,.2]),.016),[.80,.66,.26],METAL))
-  addons.append((slab(body,lambda p:yband(p,.965,1.025),.017),black,LEATHER))                                              # duty belt
- if rider:
-  addons.append((lambda p:ring(p,[0,0,.02],.145,.02,1.50,1.56),cloth*.8,CLOTH))                                          # hoodie neckline
-  addons.append((slab(coat0,lambda p:rbox(p,[0,1.06,.25],[.15,.055,.2],.02),.013),cloth*.9,CLOTH))                         # kangaroo pocket
-  addons.append((slab(coat0,lambda p:np.maximum(plane_band(p,[0,1.40,0],[.82,.57,0],.03),-p[...,2]-.05),.013),[.12,.12,.14],MATTE))   # bag strap
-  addons.append((slab(coat0,lambda p:np.maximum(plane_band(p,[0,1.40,0],[.82,.57,0],.009),-p[...,2]-.05),.016),[.86,.90,.55],PLASTIC)) # reflective stripe
- coat,cdec=fuse(coat0,addons)
- def fabric(p,c):
-  x,y,z=p.T;front=z>.12
-  c[(np.abs(x)<.010)&front&(y>1.0)&(y<1.5)]*=.55
-  c[y<.96]*=.80
-  if boris:c[(x<-.36)&(np.abs(y-1.17)<.06)]*=.82
-  if cop:c[(np.abs(np.abs(x)-.09)<.006)&front&(y>1.02)&(y<1.5)]*=.7
-  return c
- ch.add('jacket',coat,[[-.80,.80,-.34],[.80,1.70,.36]],cloth,'coat',coat_mat,.0155 if cop else .016,fabric,decals=cdec)
- # ---------------------------------------------------------------- trousers
- laddons=[]
- if boris:
-  for side in [-1,1]:laddons.append((slab(legs0,lambda p,s=side:ell(p,[s*.18,.50,.14],[.085,.10,.09]),.012),[.36,.31,.22],MATTE))   # knee patches
- if rider:
-  for side in [-1,1]:laddons.append((slab(legs0,lambda p,s=side:np.maximum(yband(p,.17,.24),np.abs(p[...,0]-s*.18)-.16),.011),[.28,.29,.33],MATTE))  # jogger cuffs
- legs,ldec=fuse(legs0,laddons)
- def denim(p,c):
-  x,y,z=p.T
-  c[(np.abs(np.abs(x)-.285*hip[0]/.295)<.009)]*=.78
-  if cop:c[(np.abs(np.abs(x)-(hip[0]-.02))<.010)&(y<.85)&(y>.2)]=[.50,.55,.66]
-  if rider:c[(np.abs(np.abs(x)-.255)<.011)&(y<.84)&(y>.25)]=[.82,.82,.84]
-  if boris:c[(y<.30)]*=.9
-  return c
- ch.add('trousers',legs,[[-.38,.06,-.26],[.38,1.09,.28]],pants,'legs',MATTE,.017,denim,decals=ldec)
- # ---------------------------------------------------------------- hands / gloves and footwear
+   addons.append((slab(coat0,lambda p,s=side:ell(p,[s*.625,.96,.03],[.11,.11,.11]),.013),cloth*.84,QUILT))
+   addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.165,1.245,.25],[.075,.055,.2],.01),.013),cloth*.96,QUILT))
+   addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.165,1.315,.25],[.082,.016,.2],.008),.02),cloth*.84,QUILT))
+  addons.append((lambda p:ring(p,[0,0,0],.153,.024,1.535,1.605),cloth*.9,QUILT))
+  addons.append((slab(body,lambda p:yband(p,.975,1.025),.013),[.52,.42,.25],LEATHER))
+  coat,cdec=fuse(coat0,addons)
+  def fabric(p,c):
+   x,y,z=p.T;front=z>.12;c[(np.abs(x)<.010)&front&(y>1.0)&(y<1.5)]*=.55;c[y<.96]*=.80;c[(x<-.36)&(np.abs(y-1.17)<.06)]*=.82;return c
+  ch.add('jacket',coat,[[-.80,.80,-.34],[.80,1.70,.36]],cloth,'coat',QUILT,.016,fabric,decals=cdec)
+  laddons=[(slab(legs0,lambda p,s=side:ell(p,[s*.18,.50,.14],[.085,.10,.09]),.012),[.36,.31,.22],MATTE) for side in [-1,1]]
+  legs,ldec=fuse(legs0,laddons)
+  ch.add('trousers',legs,[[-.38,.06,-.26],[.38,1.09,.28]],pants,'legs',MATTE,.017,lambda p,c:(c.__setitem__((np.abs(np.abs(p[:,0])-.285)<.009),np.array(pants)*.78) or c.__setitem__((p[:,1]<.30),np.array(pants)*.9) or c),decals=ldec)
+ elif boris and outfit==2:
+  # Courier: yellow jacket, black yoke, collar and cuffs, reflective band, chest strap for the box.
+  addons=[(slab(coat0,lambda p,s=side:ell(p,[s*.625,.96,.03],[.11,.11,.11]),.013),black,CLOTH) for side in [-1,1]]
+  addons.append((slab(coat0,lambda p:np.maximum(1.52-p[...,1],np.abs(p[...,0])-.48),.010),black,CLOTH))
+  addons.append((lambda p:ring(p,[0,0,.01],.150,.022,1.535,1.60),black,CLOTH))
+  addons.append((slab(coat0,lambda p:yband(p,1.12,1.165),.012),[.86,.88,.84],PLASTIC))
+  addons.append((slab(coat0,lambda p:np.maximum(plane_band(p,[0,1.40,0],[.82,.57,0],.03),-p[...,2]-.05),.013),[.12,.12,.14],MATTE))
+  coat,cdec=fuse(coat0,addons)
+  def fabric(p,c):
+   x,y,z=p.T;front=z>.12;c[(np.abs(x)<.010)&front&(y>1.0)&(y<1.5)]*=.45;c[y<.96]*=.85;return c
+  ch.add('courier jacket',coat,[[-.80,.80,-.34],[.80,1.70,.36]],cloth,'coat',CLOTH,.016,fabric,decals=cdec)
+  laddons=[(slab(legs0,lambda p,s=side:np.maximum(yband(p,.17,.24),np.abs(p[...,0]-s*.18)-.16),.011),[.24,.24,.27],MATTE) for side in [-1,1]]
+  legs,ldec=fuse(legs0,laddons)
+  ch.add('joggers',legs,[[-.38,.06,-.26],[.38,1.09,.28]],pants,'legs',MATTE,.017,lambda p,c:(c.__setitem__((np.abs(np.abs(p[:,0])-.285)<.011)&(p[:,1]<.86)&(p[:,1]>.25),[.98,.78,.10]) or c),decals=ldec)
+ elif boris and outfit==3:
+  # Abibas: black tracksuit, four white stripes down every sleeve and leg, white zip, stand collar, gold chain.
+  addons=[(slab(coat0,lambda p,s=side:ell(p,[s*.625,.96,.03],[.11,.11,.11]),.011),[.14,.14,.16],CLOTH) for side in [-1,1]]
+  addons.append((lambda p:ring(p,[0,0,0],.150,.022,1.535,1.61),[.14,.14,.16],CLOTH))
+  coat,cdec=fuse(coat0,addons)
+  def stripes(p,c):
+   x,y,z=p.T
+   c[(np.abs(x)<.010)&(z>.12)&(y>1.0)&(y<1.52)]=[.90,.90,.90]
+   for side in [-1,1]:
+    t,ang,L=sleeve_frame(p,side);on=(t>.06)&(t<L-.02)&(np.abs(x)>.34)
+    for k in range(4):c[on&(np.abs(ang-(-.36+k*.24))<.055)]=[.92,.92,.92]
+   return c
+  ch.add('tracksuit jacket',coat,[[-.80,.80,-.34],[.80,1.70,.36]],cloth,'coat',CLOTH,.015,stripes,decals=cdec)
+  data=ch.v[-1];x,y,z=data[:,:3].T;stamp(data,'ABIBAS',-.205,1.44,.017,(z<-.19)&(np.abs(x)<.22)&(y>1.34)&(y<1.46),[.94,.94,.94])
+  def legstripes(p,c):
+   x,y,z=p.T
+   for side in [-1,1]:
+    ang=np.arctan2(z-.015,(x-side*.18)*side);on=(y<.86)&(y>.20)&(x*side>0)
+    for k in range(4):c[on&(np.abs(ang-(-.36+k*.24))<.065)]=[.92,.92,.92]
+   return c
+  ch.add('track pants',legs0,[[-.38,.06,-.26],[.38,1.09,.28]],pants,'legs',MATTE,.016,legstripes)
+  ch.add('gold chain',lambda p:ring(p,[0,0,.05],.135,.011,1.505,1.53),[[-.17,1.48,-.12],[.17,1.56,.22]],gold,'coat',METAL,.006,None,True)
+ else:
+  addons=[(slab(coat0,lambda p,s=side:ell(p,[s*.625,.96,.03],[.11,.11,.11]),.013),cloth*.84,CLOTH) for side in [-1,1]]
+  if cop:
+   for side in [-1,1]:
+    addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.30,1.60,-.01],[.09,.06,.05],.012),.017),[.14,.19,.33],CLOTH))      # epaulettes
+    addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.16,1.29,.25],[.075,.05,.2],.01),.013),cloth*.97,CLOTH))          # chest pockets
+    addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.16,1.355,.25],[.082,.016,.2],.008),.02),cloth*.86,CLOTH))        # pocket flaps
+    addons.append((slab(coat0,lambda p,s=side:rbox(p,[s*.21,1.02,.25],[.08,.06,.2],.012),.013),cloth*.95,CLOTH))          # hip pockets
+    addons.append((slab(coat0,lambda p,s=side:ell(p,[s*.065,1.53,.24],[.06,.045,.2]),.012),[.66,.72,.82],CLOTH))         # shirt collar
+   addons.append((slab(coat0,lambda p:rbox(p,[0,1.41,.25],[.022,.09,.2],.008),.012),[.38,.10,.13],CLOTH))                  # tie
+   addons.append((slab(coat0,lambda p:rbox(p,[.15,1.38,.25],[.022,.028,.2],.006),.014),gold,METAL))                      # badge
+   for k in range(4):addons.append((slab(coat0,lambda p,yy=1.06+k*.095:ell(p,[0,yy,.25],[.015,.015,.2]),.016),[.80,.66,.26],METAL))
+   addons.append((slab(body,lambda p:yband(p,.965,1.025),.017),black,LEATHER))                                              # duty belt
+  if rider:
+   addons.append((lambda p:ring(p,[0,0,.02],.145,.02,1.50,1.56),cloth*.8,CLOTH))                                          # hoodie neckline
+   addons.append((slab(coat0,lambda p:rbox(p,[0,1.06,.25],[.15,.055,.2],.02),.013),cloth*.9,CLOTH))                         # kangaroo pocket
+   addons.append((slab(coat0,lambda p:np.maximum(plane_band(p,[0,1.40,0],[.82,.57,0],.03),-p[...,2]-.05),.013),[.12,.12,.14],MATTE))   # bag strap
+   addons.append((slab(coat0,lambda p:np.maximum(plane_band(p,[0,1.40,0],[.82,.57,0],.009),-p[...,2]-.05),.016),[.86,.90,.55],PLASTIC)) # reflective stripe
+  coat,cdec=fuse(coat0,addons)
+  def fabric(p,c):
+   x,y,z=p.T;front=z>.12
+   c[(np.abs(x)<.010)&front&(y>1.0)&(y<1.5)]*=.55;c[y<.96]*=.80
+   if cop:c[(np.abs(np.abs(x)-.09)<.006)&front&(y>1.02)&(y<1.5)]*=.7
+   return c
+  ch.add('jacket',coat,[[-.80,.80,-.34],[.80,1.70,.36]],cloth,'coat',CLOTH,.0155 if cop else .016,fabric,decals=cdec)
+  laddons=[]
+  if rider:
+   for side in [-1,1]:laddons.append((slab(legs0,lambda p,s=side:np.maximum(yband(p,.17,.24),np.abs(p[...,0]-s*.18)-.16),.011),[.28,.29,.33],MATTE))
+  legs,ldec=fuse(legs0,laddons)
+  def denim(p,c):
+   x,y,z=p.T
+   c[(np.abs(np.abs(x)-.285*hip[0]/.295)<.009)]*=.78
+   if cop:c[(np.abs(np.abs(x)-(hip[0]-.02))<.010)&(y<.85)&(y>.2)]=[.50,.55,.66]
+   if rider:c[(np.abs(np.abs(x)-.255)<.011)&(y<.84)&(y>.25)]=[.82,.82,.84]
+   return c
+  ch.add('trousers',legs,[[-.38,.06,-.26],[.38,1.09,.28]],pants,'legs',MATTE,.017,denim,decals=ldec)
+ # ---------------------------------------------------------------- hands (shared for Boris) and footwear
  for side,hand,foot in [(-1,5,11),(1,8,14)]:
   hx=side*.637;hs=1.08 if cop else .94 if rider else 1.0
   def make_hand(hx=hx,side=side,hs=hs):
@@ -274,23 +376,34 @@ def build(kind):
    x,y,z=p.T;c[y>.935]=[.20,.20,.23];c[(y<.86)&(z>.05)]*=1.10;return c
   def knuckles(p,c):
    x,y,z=p.T;c[(np.abs(y-.86)<.012)&(z>.04)]*=.90;return c
-  ch.add('hand',make_hand(),[[hx-.13,.75,-.05],[hx+.13,1.0,.13]],[.12,.12,.14] if rider else skin,hand,MATTE if rider else SKIN,.0075,glove if rider else knuckles)
-  m=(1.08,1.05,1.06) if cop else (.90,.80,.92) if rider else (1,1,1);n_=(1.08,1.02,1.06) if cop else (.86,.78,.90) if rider else (1,1,1)
+  ch.add('hand',make_hand(),[[hx-.13,.75,-.05],[hx+.13,1.0,.13]],[.12,.12,.14] if rider else skin,hand,MATTE if rider else SKIN,.0075,glove if rider else knuckles,shared=boris)
+  sneaker=rider or (boris and outfit>=2)
+  m=(1.08,1.05,1.06) if cop else (.90,.80,.92) if rider else (1,.84,.96) if sneaker else (1,1,1);n_=(1.08,1.02,1.06) if cop else (.86,.78,.90) if rider else (.94,.80,.92) if sneaker else (1,1,1)
   def make_shoe(side=side,m=m,n_=n_):
    def fn(p):
     d=union(ell(p,[side*.18,.13,.10],[.12*m[0],.095*m[1],.225*m[2]]),ell(p,[side*.18,.19,.025],[.095*n_[0],.16*n_[1],.115*n_[2]]),k=.04)
     if cop:d=sm(d,cap(p,[side*.18,.19,.02],[side*.18,.31,.02],.112,.118),.03)
+    if boris and outfit==0 and side==-1:d=cut(d,ell(p,[side*.18,.16,.30],[.055,.05,.06]))
     return d
    return fn
-  shoe0=make_shoe();saddons=[(slab(shoe0,lambda p:p[...,1]-(.075 if rider else .062),.014),[.90,.90,.88] if rider else [.10,.10,.09],RUBBER)]
-  if not rider:saddons.append((slab(shoe0,lambda p:np.maximum(.20-p[...,2],p[...,1]-.16),.009),[.30,.20,.12] if boris else [.10,.10,.12],LEATHER))
+  shoe0=make_shoe();saddons=[(slab(shoe0,lambda p:p[...,1]-(.075 if sneaker or rider else .062),.014),white if (sneaker or rider) else [.10,.10,.09],RUBBER)]
+  if not (rider or sneaker):saddons.append((slab(shoe0,lambda p:np.maximum(.20-p[...,2],p[...,1]-.16),.009),[.30,.20,.12] if boris else [.10,.10,.12],LEATHER))
   shoe,sdec=fuse(shoe0,saddons,k=.005)
-  def leather(p,c):
+  def leather(p,c,side=side):
    x,y,z=p.T
    if cop:c[(np.abs(y-.29)<.012)]*=.8
-   laces=(y>.19)&(z>.09)&(z<.24)&(np.abs(x-side*.18)<.07)&(np.mod(z,.036)<.012);c[laces]=[.62,.58,.45] if boris else [.90,.90,.88] if rider else [.30,.30,.32]
+   laces=(y>.19)&(z>.09)&(z<.24)&(np.abs(x-side*.18)<.07)&(np.mod(z,.036)<.012)
+   if boris and outfit==0:
+    c[laces&(side==1)]=[.40,.36,.30];c*=1-.30*np.clip(np.sin(x*40+z*33)*np.sin(y*57),0,1)[:,None]
+    hole=np.sqrt((x-side*.18)**2+(y-.16)**2+(z-.30)**2)<.065;c[hole&(side==-1)]=[.60,.42,.30]
+   elif sneaker:
+    c[laces]=[.95,.95,.93]
+    if outfit==3:
+     for k in range(4):c[(np.abs(x-side*.18)>.075)&(np.abs((z-.02)-(y-.13)*1.1-k*.045)<.011)&(y>.09)&(y<.30)]=[.08,.08,.10]
+   else:c[laces]=[.62,.58,.45] if boris else [.90,.90,.88] if rider else [.30,.30,.32]
    return c
-  ch.add('boot',shoe,[[side*.18-.18,.0,-.16],[side*.18+.18,.43 if cop else .37,.38]],[.07,.07,.08] if cop else [.16,.18,.24] if rider else [.22,.14,.08],foot,LEATHER if not rider else MATTE,.011,leather,decals=sdec)
+  bootcol=[.07,.07,.08] if cop else [.16,.18,.24] if rider else ([.36,.22,.12] if side==-1 else [.12,.11,.12]) if (boris and outfit==0) else (white if sneaker else [.22,.14,.08])
+  ch.add('boot' if not sneaker else 'sneaker',shoe,[[side*.18-.18,.0,-.16],[side*.18+.18,.43 if cop else .37,.38]],bootcol,foot,MATTE if (rider or sneaker) else LEATHER,.011,leather,decals=sdec)
  # ---------------------------------------------------------------- head: one fused face surface, hair fused as a layer
  sk=[.244,.278,.211] if cop else [.205,.262,.205] if rider else [.237,.278,.211]
  jaw=[.19,.141,.167] if cop else [.15,.13,.16] if rider else [.175,.141,.167]
@@ -307,9 +420,12 @@ def build(kind):
    d=cut(d,ell(p,[side*.088,1.994,.200],[.052,.034,.032]))
    d=cut(d,ell(p,[side*.028,1.90,.29],[.012,.010,.02]))
   return cut(d,cap(p,[-.052,1.822,.228],[.052,1.822,.228],.011))
- hy=(2.04,2.12) if cop else (2.00,2.10) if rider else (1.99,2.07)
- haircol=[.30,.30,.31] if cop else [.14,.10,.08] if rider else [.36,.26,.14]
- face_h,fdec_h=fuse(face0,[(slab(skull,lambda p:np.maximum(yband(p,*hy),p[...,2]-(.14 if rider else .10)),.017),haircol,HAIR)],k=.004)
+ hy=(2.04,2.12) if cop else (2.00,2.10)
+ haircol=[.30,.30,.31] if cop else [.14,.10,.08] if rider else [.40,.30,.18]
+ # Boris goes bare-headed in some outfits: a full short haircut with a receding hairline instead of a band under the hat.
+ if boris:hairreg=lambda p:np.maximum(np.maximum((2.07-.7*np.maximum(0,.10-p[...,2]))-p[...,1],p[...,2]-.14),1.88-p[...,1])
+ else:hairreg=lambda p:np.maximum(yband(p,*hy),p[...,2]-(.14 if rider else .10))
+ face_h,fdec_h=fuse(face0,[(slab(skull,hairreg,.017),haircol,HAIR)],k=.004)
  face=lambda p:sm(headify(face_h)(p),neckf(p),.05);fdec=[(headify(d[0]),d[1],d[2]) for d in fdec_h]
  def complexion(p,c):
   x,y,z=p.T
@@ -324,7 +440,7 @@ def build(kind):
   if cop:c[(y<1.86)&(z>.02)&(np.abs(x)<.2)&(np.sin(x*300)*np.sin(y*300)>0)]*=.93
   if rider:c[(y<1.83)&(z>.05)]*=1.03
   return c
- ch.add('face',face,[[-.26,1.48,-.22],[.26,2.14,.32]],skin,2,SKIN,.0105,lambda p,c:complexion(headpt(p),c),decals=fdec)
+ ch.add('face',face,[[-.26,1.48,-.22],[.26,2.14,.32]],skin,2,SKIN,.0105,lambda p,c:complexion(headpt(p),c),decals=fdec,shared=boris)
  for side in [-1,1]:
   def iris(p,c,side=side):
    x,y,z=p.T;d=np.sqrt(((x-side*.088)*1.03)**2+((y-1.994)*1.03)**2)
@@ -332,14 +448,14 @@ def build(kind):
    c[(d<.0085)&(z>.22)]=[.02,.02,.02]
    c[(np.abs(x-side*.088+.006)<.005)&(np.abs(y-2.001)<.005)&(z>.22)]=[.98,.98,.94]
    return c
-  ch.add('eye',lambda p,s=side:ell(p,[s*.088,1.994,.198],[.040,.025,.027]),[[side*.088-.053,1.954,.163],[side*.088+.053,2.03,.234]],[.95,.94,.90],2,EYE,.0048,iris,head=True)
+  ch.add('eye',lambda p,s=side:ell(p,[s*.088,1.994,.198],[.040,.025,.027]),[[side*.088-.053,1.954,.163],[side*.088+.053,2.03,.234]],[.95,.94,.90],2,EYE,.0048,iris,head=True,shared=boris)
  def brows(p):
   d=np.full(p.shape[:-1],9.,'f4')
   for side in [-1,1]:
    d=np.minimum(d,ell(p,[side*.092,2.046,.214],[.052,.015 if cop else .010,.017]))
    if cop:d=sm(d,ell(p,[side*.05,2.036,.222],[.022,.013,.015]),.01)
   return d
- ch.add('eyebrows',brows,[[-.17,2.0,.17],[.17,2.09,.25]],[.16,.12,.08] if not cop else [.20,.16,.12],2,HAIR,.006,None,True,head=True)
+ ch.add('eyebrows',brows,[[-.17,2.0,.17],[.17,2.09,.25]],[.16,.12,.08] if not cop else [.20,.16,.12],2,HAIR,.006,None,True,head=True,shared=boris)
  # ---------------------------------------------------------------- character-specific kit
  if boris:
   def beard(p):
@@ -349,23 +465,48 @@ def build(kind):
    return d+.003*np.sin(p[...,0]*225+p[...,1]*27)
   def beardpaint(p,c):
    x,y,z=p.T;stripe=(np.sin(x*180+y*13)+np.sin(x*330-y*25))*.06;c*=1+stripe[:,None];c[y>1.85]*=.9;return c
-  ch.add('beard',beard,[[-.22,1.61,-.04],[.22,1.90,.28]],[.44,.40,.33],16,HAIR,.012,beardpaint,head=True)
-  def beanie0(p):return np.maximum(ell(p,[0,2.125,-.02],[.252,.175,.228]),2.06-p[...,1])
-  beanie,bdec=fuse(beanie0,[(slab(skull,lambda p:yband(p,2.03,2.105),.042),[.40,.24,.12],KNIT)],k=.008)
-  ch.add('wool beanie',beanie,[[-.30,2.02,-.28],[.30,2.31,.27]],[.46,.28,.14],2,KNIT,.0125,None,decals=bdec,head=True)
-  def bag0(p):
-   q=(p-np.array([0,1.21,-.277]))/np.array([.245,.295,.145]);return (np.sum(np.abs(q)**3.5,axis=-1)**(1/3.5)-1)*.145
-  bag,gdec=fuse(bag0,[(slab(bag0,lambda p:yband(p,1.42,1.52),.012),[.36,.24,.12],MATTE)],k=.006)
-  def canvas(p,c):
-   x,y,z=p.T;c[(np.abs(np.abs(x)-.207)<.006)&(z<-.35)]=[.62,.50,.28];c[(np.abs(y-1.16)<.006)&(z<-.40)]*=.8;return c
-  ch.add('rucksack',bag,[[-.28,.88,-.46],[.28,1.56,-.10]],[.42,.28,.14],15,MATTE,.0145,canvas,decals=gdec)
-  for side in [-1,1]:
-   ch.add('flap strap',lambda p,s=side:rbox(p,[s*.13,1.30,-.435],[.018,.11,.012],.005),[[side*.13-.05,1.17,-.47],[side*.13+.05,1.43,-.38]],[.24,.16,.08],15,LEATHER,.0065,None,True)
-   ch.add('buckle',lambda p,s=side:rbox(p,[s*.13,1.20,-.44],[.024,.016,.014],.004),[[side*.13-.05,1.17,-.48],[side*.13+.05,1.23,-.40]],[.72,.60,.28],15,METAL,.005,None,True)
-   ch.add('shoulder strap',lambda p,s=side:cap(p,[s*.21,1.49,-.11],[s*.25,1.02,-.13],.03),[[side*.25-.08,.97,-.19],[side*.21+.08,1.55,-.05]],[.24,.16,.085],1,LEATHER,.011)
-  ch.add('rolled blanket',lambda p:cap(p,[-.24,1.55,-.28],[.24,1.55,-.28],.065),[[-.32,1.47,-.36],[.32,1.63,-.20]],[.36,.42,.40],15,CLOTH,.012,lambda p,c:(c.__setitem__((np.abs(np.abs(p[:,0])-.12)<.012),[.22,.18,.12]) or c))
-  ch.add('bottle',lambda p:union(cap(p,[.27,1.06,-.25],[.27,1.26,-.25],.038),cap(p,[.27,1.26,-.25],[.27,1.34,-.25],.018),k=.02),[[.20,1.0,-.32],[.34,1.37,-.18]],[.16,.46,.24],15,PLASTIC,.0065,None,True)
-  ch.add('strap buckle',lambda p:rbox(p,[.0,1.0,td+.03],[.028,.02,.012],.004),[[-.05,.96,td-.02],[.05,1.04,td+.06]],[.72,.60,.28],'coat',METAL,.005,None,True)
+  ch.add('beard',beard,[[-.22,1.61,-.04],[.22,1.90,.28]],[.44,.40,.33],16,HAIR,.012,beardpaint,head=True,shared=True)
+  def baseball_cap(name,crown_col,peak_col):
+   crown0=lambda p:np.maximum(ell(p,[0,2.14,-.02],[.252,.15,.235]),2.07-p[...,1])
+   peak=lambda p:np.maximum(ell(p,[0,2.085,.20],[.20,.016,.12]),.09-p[...,2])
+   button=lambda p:ell(p,[0,2.29,-.02],[.02,.012,.02])
+   capf,dec=fuse(crown0,[(peak,peak_col,CLOTH),(button,crown_col,CLOTH)],k=.006)
+   def seams(p,c):
+    x,y,z=p.T;ang=np.arctan2(x,z+.02);c[(np.abs(np.mod(ang+.4,1.05)-.5)<.03)&(y>2.09)]*=.8;return c
+   ch.add(name,capf,[[-.28,2.05,-.28],[.28,2.32,.34]],crown_col,2,CLOTH,.0115,seams,decals=dec,head=True)
+  if outfit==1:
+   def beanie0(p):return np.maximum(ell(p,[0,2.125,-.02],[.252,.175,.228]),2.06-p[...,1])
+   beanie,bdec=fuse(beanie0,[(slab(skull,lambda p:yband(p,2.03,2.105),.042),[.40,.24,.12],KNIT)],k=.008)
+   ch.add('wool beanie',beanie,[[-.30,2.02,-.28],[.30,2.31,.27]],[.46,.28,.14],2,KNIT,.0125,None,decals=bdec,head=True)
+   def bag0(p):
+    q=(p-np.array([0,1.21,-.277]))/np.array([.245,.295,.145]);return (np.sum(np.abs(q)**3.5,axis=-1)**(1/3.5)-1)*.145
+   bag,gdec=fuse(bag0,[(slab(bag0,lambda p:yband(p,1.42,1.52),.012),[.36,.24,.12],MATTE)],k=.006)
+   def canvas(p,c):
+    x,y,z=p.T;c[(np.abs(np.abs(x)-.207)<.006)&(z<-.35)]=[.62,.50,.28];c[(np.abs(y-1.16)<.006)&(z<-.40)]*=.8;return c
+   ch.add('rucksack',bag,[[-.28,.88,-.46],[.28,1.56,-.10]],[.42,.28,.14],15,MATTE,.0145,canvas,decals=gdec)
+   for side in [-1,1]:
+    ch.add('flap strap',lambda p,s=side:rbox(p,[s*.13,1.30,-.435],[.018,.11,.012],.005),[[side*.13-.05,1.17,-.47],[side*.13+.05,1.43,-.38]],[.24,.16,.08],15,LEATHER,.0065,None,True)
+    ch.add('buckle',lambda p,s=side:rbox(p,[s*.13,1.20,-.44],[.024,.016,.014],.004),[[side*.13-.05,1.17,-.48],[side*.13+.05,1.23,-.40]],[.72,.60,.28],15,METAL,.005,None,True)
+    ch.add('shoulder strap',lambda p,s=side:cap(p,[s*.21,1.49,-.11],[s*.25,1.02,-.13],.03),[[side*.25-.08,.97,-.19],[side*.21+.08,1.55,-.05]],[.24,.16,.085],1,LEATHER,.011)
+   ch.add('rolled blanket',lambda p:cap(p,[-.24,1.55,-.28],[.24,1.55,-.28],.065),[[-.32,1.47,-.36],[.32,1.63,-.20]],[.36,.42,.40],15,CLOTH,.012,lambda p,c:(c.__setitem__((np.abs(np.abs(p[:,0])-.12)<.012),[.22,.18,.12]) or c))
+   ch.add('bottle',lambda p:union(cap(p,[.27,1.06,-.25],[.27,1.26,-.25],.038),cap(p,[.27,1.26,-.25],[.27,1.34,-.25],.018),k=.02),[[.20,1.0,-.32],[.34,1.37,-.18]],[.16,.46,.24],15,PLASTIC,.0065,None,True)
+   ch.add('strap buckle',lambda p:rbox(p,[.0,1.0,td+.03],[.028,.02,.012],.004),[[-.05,.96,td-.02],[.05,1.04,td+.06]],[.72,.60,.28],'coat',METAL,.005,None,True)
+  elif outfit==2:
+   baseball_cap('courier cap',[.09,.09,.11],[.98,.78,.10])
+   # Big delivery thermal box: lid seam line, black lettering on the back wall and on the lid (the chase camera looks down at it).
+   def boxpaint(p,c):
+    x,y,z=p.T;c[(np.abs(y-1.47)<.006)&(z<-.50)]*=.6;c[(np.abs(np.abs(x)-.22)<.006)&(z<-.50)]*=.7;c[(np.abs(z+.30)<.006)&(y>1.50)]*=.7;return c
+   ch.add('thermal box',lambda p:rbox(p,[0,1.30,-.42],[.23,.22,.14],.03),[[-.27,1.06,-.59],[.27,1.55,-.26],],[.98,.80,.12],15,PLASTIC,.011,boxpaint)
+   data=ch.v[-1];x,y,z=data[:,:3].T;ink=[.08,.08,.10];back=(z<-.53)&(np.abs(x)<.228)
+   stamp(data,'БОМЖ',-.165,1.44,.022,back&(y>1.32)&(y<1.46),ink);stamp(data,'СТАВКА',-.201,1.28,.0175,back&(y>1.18)&(y<1.30),ink)
+   top=(y>1.508)&(np.abs(x)<.228)
+   stamp(data,'БОМЖ',-.165,-.315,.022,top&(z<-.30)&(z>-.44),ink,rowaxis=2);stamp(data,'СТАВКА',-.201,-.445,.0175,top&(z<-.43)&(z>-.56),ink,rowaxis=2)
+   for side in [-1,1]:
+    ch.add('box strap',lambda p,s=side:cap(p,[s*.15,1.50,-.14],[s*.17,1.36,-.34],.02),[[side*.17-.06,1.30,-.40],[side*.15+.06,1.54,-.08]],[.12,.12,.14],1,MATTE,.0105)
+   ch.add('strap clip',lambda p:rbox(p,[-.18,1.19,.20],[.03,.024,.012],.005),[[-.24,1.15,.16],[-.12,1.24,.25]],[.25,.25,.28],'coat',PLASTIC,.0055,None,True)
+  elif outfit==3:
+   baseball_cap('black cap',[.10,.10,.12],[.10,.10,.12])
+   data=ch.v[-1];x,y,z=data[:,:3].T;front=(z>.08)&(y>2.016)&(y<2.08)&(np.abs(x)<.08);stamp(data,'A',-.02,2.072,.0128,front,[.92,.92,.92])
  elif cop:
   ch.add('moustache',lambda p:union(cap(p,[-.08,1.845,.205],[-.008,1.862,.232],.016,.024),cap(p,[.008,1.862,.232],[.08,1.845,.205],.024,.016),k=.012),[[-.11,1.81,.17],[.11,1.90,.27]],[.22,.16,.11],2,HAIR,.0052,head=True)
   def crown0(p):return np.maximum(union(ell(p,[0,2.165,-.03],[.268,.105,.248]),ell(p,[0,2.235,.02],[.20,.05,.19]),k=.03),2.10-p[...,1])
@@ -374,12 +515,7 @@ def build(kind):
   ch.add('cockade',lambda p:ell(p,[0,2.175,.245],[.03,.03,.012]),[[-.05,2.13,.22],[.05,2.22,.27]],gold,2,METAL,.0045,None,True,head=True)
   # Back insignia is surface paint on the tunic (part 0).
   data=ch.v[0];x,y,z=data[:,:3].T;back=(z<-.19)&(y>1.36)&(y<1.445)&(np.abs(x)<.215);data[back,6:9]=[.035,.065,.10]
-  glyphs=['111101101101101','111101101101111','011101101101101','101101111111101','101101101111001','101101111111101','111101111011101']
-  for g,glyph in enumerate(glyphs):
-   for k,bit in enumerate(glyph):
-    if bit=='1':
-     xx=-.203+g*.059+(k%3)*.017;yy=1.431-(k//3)*.013
-     pick=back&(np.abs(x-xx)<.009)&(np.abs(y-yy)<.007);data[pick,6:9]=[.80,.83,.83]
+  stamp(data,'ПОЛИЦИЯ',-.20,1.431,.015,back,[.80,.83,.83])
   for side in [-1,1]:
    ch.add('epaulette star',lambda p,s=side:ell(p,[s*.30,1.655,-.005],[.02,.008,.02]),[[side*.30-.05,1.62,-.04],[side*.30+.05,1.69,.03]],gold,'coat',METAL,.0045,None,True)
   ch.add('radio',lambda p:rbox(p,[-.15,1.40,.215],[.03,.055,.025],.006),[[-.20,1.33,.17],[-.10,1.47,.26]],[.05,.06,.07],1,PLASTIC,.007)
@@ -410,9 +546,24 @@ def build(kind):
  return ch
 
 if __name__=='__main__':
+ import sys
+ (OUT/'skins').mkdir(exist_ok=True)
+ if len(sys.argv)>1:   # e.g. `python build_characters.py skin2` rebuilds one Boris outfit file only
+  mp=OUT/'art-source'/'models.json';meta=json.loads(mp.read_text()) if mp.exists() else []
+  for arg in sys.argv[1:]:
+   i=int(arg.replace('skin',''));blobs,m=build('boris',i).export('skin',f'_skin{i}')
+   meta=[e for e in meta if e['name']!=m['name']]+[m];mp.write_text(json.dumps(meta,indent=2))
+   (OUT/'skins'/f'boris-{i}.js').write_text(f'/* Boris outfit {i}. Rebuild with art-source/build_characters.py. */\nwindow.PIVNOY_SKINS=window.PIVNOY_SKINS||{{}};window.PIVNOY_SKINS[{i}]='+json.dumps(blobs)+';\n')
+  sys.exit(0)
  data={};meta=[]
- for name in ['boris','police','rider','rider_far']:
+ for name in ['police','rider','rider_far']:
   blobs,m=build(name).export();data[name]=blobs;meta.append(m)
+ for i in range(4):
+  ch=build('boris',i)
+  if i==1:
+   blobs,m=ch.export('shared','_shared');data['boris']=blobs;meta.append(m)
+  blobs,m=ch.export('skin',f'_skin{i}');meta.append(m)
+  (OUT/'skins'/f'boris-{i}.js').write_text(f'/* Boris outfit {i}. Rebuild with art-source/build_characters.py. */\nwindow.PIVNOY_SKINS=window.PIVNOY_SKINS||{{}};window.PIVNOY_SKINS[{i}]='+json.dumps(blobs)+';\n')
  bones={k:(BONES*np.array(CHAR_SCALE[k],dtype='f4')).tolist() for k in ['boris','police','rider']}
- (OUT/'characters-data.js').write_text('/* Original sculpted meshes. Rebuild with art-source/build_characters.py. Vertex layout: 22 bytes (i16 pos/8192, i8 normal, u8 rgb, u8 joints x4, u8 weights x4, u8 material, u8 ao). */\nwindow.PIVNOY_MODELS='+json.dumps(dict(bones=bones,parents=PARENTS,meshes=data),separators=(',',':'))+';\n')
+ (OUT/'characters-data.js').write_text('/* Original sculpted meshes. Rebuild with art-source/build_characters.py. Vertex layout: 22 bytes (i16 pos/8192, i8 normal, u8 rgb, u8 joints x4, u8 weights x4, u8 material, u8 ao). Boris here is the shared head/beard/hands; outfits live in skins/boris-N.js. */\nwindow.PIVNOY_MODELS='+json.dumps(dict(bones=bones,parents=PARENTS,meshes=data),separators=(',',':'))+';\n')
  (OUT/'art-source'/'models.json').write_text(json.dumps(meta,indent=2))

@@ -1,123 +1,5 @@
 [
   {
-    "name": "boris",
-    "vertices": 71500,
-    "triangles": 142778,
-    "chunks": 2,
-    "parts": [
-      {
-        "name": "jacket",
-        "vertices": 13899,
-        "triangles": 27804
-      },
-      {
-        "name": "trousers",
-        "vertices": 7764,
-        "triangles": 15524
-      },
-      {
-        "name": "hand",
-        "vertices": 2487,
-        "triangles": 4924
-      },
-      {
-        "name": "boot",
-        "vertices": 4403,
-        "triangles": 8804
-      },
-      {
-        "name": "hand",
-        "vertices": 2485,
-        "triangles": 4920
-      },
-      {
-        "name": "boot",
-        "vertices": 4403,
-        "triangles": 8804
-      },
-      {
-        "name": "face",
-        "vertices": 8794,
-        "triangles": 17530
-      },
-      {
-        "name": "eye",
-        "vertices": 752,
-        "triangles": 1500
-      },
-      {
-        "name": "eye",
-        "vertices": 752,
-        "triangles": 1500
-      },
-      {
-        "name": "eyebrows",
-        "vertices": 540,
-        "triangles": 1072
-      },
-      {
-        "name": "beard",
-        "vertices": 3617,
-        "triangles": 7232
-      },
-      {
-        "name": "wool beanie",
-        "vertices": 5808,
-        "triangles": 11612
-      },
-      {
-        "name": "rucksack",
-        "vertices": 5610,
-        "triangles": 11216
-      },
-      {
-        "name": "flap strap",
-        "vertices": 990,
-        "triangles": 1976
-      },
-      {
-        "name": "buckle",
-        "vertices": 408,
-        "triangles": 812
-      },
-      {
-        "name": "shoulder strap",
-        "vertices": 1110,
-        "triangles": 2216
-      },
-      {
-        "name": "flap strap",
-        "vertices": 990,
-        "triangles": 1976
-      },
-      {
-        "name": "buckle",
-        "vertices": 408,
-        "triangles": 812
-      },
-      {
-        "name": "shoulder strap",
-        "vertices": 1096,
-        "triangles": 2188
-      },
-      {
-        "name": "rolled blanket",
-        "vertices": 2314,
-        "triangles": 4624
-      },
-      {
-        "name": "bottle",
-        "vertices": 2326,
-        "triangles": 4648
-      },
-      {
-        "name": "strap buckle",
-        "vertices": 544,
-        "triangles": 1084
-      }
-    ]
-  },
-  {
     "name": "police",
     "vertices": 66035,
     "triangles": 131804,
@@ -247,7 +129,7 @@
         "triangles": 4690
       },
       {
-        "name": "boot",
+        "name": "sneaker",
         "vertices": 3390,
         "triangles": 6776
       },
@@ -257,7 +139,7 @@
         "triangles": 4662
       },
       {
-        "name": "boot",
+        "name": "sneaker",
         "vertices": 3390,
         "triangles": 6776
       },
@@ -350,7 +232,7 @@
         "triangles": 646
       },
       {
-        "name": "boot",
+        "name": "sneaker",
         "vertices": 460,
         "triangles": 916
       },
@@ -360,7 +242,7 @@
         "triangles": 662
       },
       {
-        "name": "boot",
+        "name": "sneaker",
         "vertices": 460,
         "triangles": 916
       },
@@ -403,6 +285,266 @@
         "name": "box strap",
         "vertices": 72,
         "triangles": 140
+      }
+    ]
+  },
+  {
+    "name": "boris_skin0",
+    "vertices": 46981,
+    "triangles": 93884,
+    "chunks": 1,
+    "parts": [
+      {
+        "name": "ragged tee",
+        "vertices": 10640,
+        "triangles": 21276
+      },
+      {
+        "name": "bare arms",
+        "vertices": 10528,
+        "triangles": 21048
+      },
+      {
+        "name": "belly",
+        "vertices": 4016,
+        "triangles": 8028
+      },
+      {
+        "name": "ragged shorts",
+        "vertices": 5847,
+        "triangles": 11728
+      },
+      {
+        "name": "bare legs",
+        "vertices": 7062,
+        "triangles": 14024
+      },
+      {
+        "name": "boot",
+        "vertices": 4485,
+        "triangles": 8976
+      },
+      {
+        "name": "boot",
+        "vertices": 4403,
+        "triangles": 8804
+      }
+    ]
+  },
+  {
+    "name": "boris_shared",
+    "vertices": 19753,
+    "triangles": 39330,
+    "chunks": 1,
+    "parts": [
+      {
+        "name": "hand",
+        "vertices": 2487,
+        "triangles": 4924
+      },
+      {
+        "name": "hand",
+        "vertices": 2485,
+        "triangles": 4920
+      },
+      {
+        "name": "face",
+        "vertices": 9120,
+        "triangles": 18182
+      },
+      {
+        "name": "eye",
+        "vertices": 752,
+        "triangles": 1500
+      },
+      {
+        "name": "eye",
+        "vertices": 752,
+        "triangles": 1500
+      },
+      {
+        "name": "eyebrows",
+        "vertices": 540,
+        "triangles": 1072
+      },
+      {
+        "name": "beard",
+        "vertices": 3617,
+        "triangles": 7232
+      }
+    ]
+  },
+  {
+    "name": "boris_skin1",
+    "vertices": 52073,
+    "triangles": 104100,
+    "chunks": 1,
+    "parts": [
+      {
+        "name": "jacket",
+        "vertices": 13899,
+        "triangles": 27804
+      },
+      {
+        "name": "trousers",
+        "vertices": 7764,
+        "triangles": 15524
+      },
+      {
+        "name": "boot",
+        "vertices": 4403,
+        "triangles": 8804
+      },
+      {
+        "name": "boot",
+        "vertices": 4403,
+        "triangles": 8804
+      },
+      {
+        "name": "wool beanie",
+        "vertices": 5808,
+        "triangles": 11612
+      },
+      {
+        "name": "rucksack",
+        "vertices": 5610,
+        "triangles": 11216
+      },
+      {
+        "name": "flap strap",
+        "vertices": 990,
+        "triangles": 1976
+      },
+      {
+        "name": "buckle",
+        "vertices": 408,
+        "triangles": 812
+      },
+      {
+        "name": "shoulder strap",
+        "vertices": 1110,
+        "triangles": 2216
+      },
+      {
+        "name": "flap strap",
+        "vertices": 990,
+        "triangles": 1976
+      },
+      {
+        "name": "buckle",
+        "vertices": 408,
+        "triangles": 812
+      },
+      {
+        "name": "shoulder strap",
+        "vertices": 1096,
+        "triangles": 2188
+      },
+      {
+        "name": "rolled blanket",
+        "vertices": 2314,
+        "triangles": 4624
+      },
+      {
+        "name": "bottle",
+        "vertices": 2326,
+        "triangles": 4648
+      },
+      {
+        "name": "strap buckle",
+        "vertices": 544,
+        "triangles": 1084
+      }
+    ]
+  },
+  {
+    "name": "boris_skin3",
+    "vertices": 40209,
+    "triangles": 80404,
+    "chunks": 1,
+    "parts": [
+      {
+        "name": "tracksuit jacket",
+        "vertices": 15159,
+        "triangles": 30320
+      },
+      {
+        "name": "track pants",
+        "vertices": 8768,
+        "triangles": 17532
+      },
+      {
+        "name": "gold chain",
+        "vertices": 2458,
+        "triangles": 4916
+      },
+      {
+        "name": "sneaker",
+        "vertices": 3756,
+        "triangles": 7508
+      },
+      {
+        "name": "sneaker",
+        "vertices": 3756,
+        "triangles": 7508
+      },
+      {
+        "name": "black cap",
+        "vertices": 6312,
+        "triangles": 12620
+      }
+    ]
+  },
+  {
+    "name": "boris_skin2",
+    "vertices": 41788,
+    "triangles": 83152,
+    "chunks": 1,
+    "parts": [
+      {
+        "name": "courier jacket",
+        "vertices": 13828,
+        "triangles": 27664
+      },
+      {
+        "name": "joggers",
+        "vertices": 7816,
+        "triangles": 15628
+      },
+      {
+        "name": "sneaker",
+        "vertices": 3756,
+        "triangles": 7508
+      },
+      {
+        "name": "sneaker",
+        "vertices": 3756,
+        "triangles": 7508
+      },
+      {
+        "name": "courier cap",
+        "vertices": 6312,
+        "triangles": 12620
+      },
+      {
+        "name": "thermal box",
+        "vertices": 4750,
+        "triangles": 9096
+      },
+      {
+        "name": "box strap",
+        "vertices": 504,
+        "triangles": 1004
+      },
+      {
+        "name": "box strap",
+        "vertices": 498,
+        "triangles": 992
+      },
+      {
+        "name": "strap clip",
+        "vertices": 568,
+        "triangles": 1132
       }
     ]
   }
