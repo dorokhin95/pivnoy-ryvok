@@ -1,3 +1,6 @@
 # Local Claude Code session state — not project content
 .claude/*
 !.claude/launch.json
+
+# Scratch character-preview harness used while iterating (not shipped)
+/_preview.html

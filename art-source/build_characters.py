@@ -8,6 +8,11 @@ from scipy.ndimage import map_coordinates
 OUT=Path(__file__).resolve().parent.parent
 BONES=np.array([[0,.94,0],[0,1.30,0],[0,1.72,0],[-.35,1.48,0],[-.51,1.17,.015],[-.63,.91,.03],[.35,1.48,0],[.51,1.17,.015],[.63,.91,.03],[-.18,.94,0],[-.18,.51,.015],[-.18,.14,.025],[.18,.94,0],[.18,.51,.015],[.18,.14,.025]],dtype='f4')
 PARENTS=[-1,0,1,1,3,4,1,6,7,0,9,10,0,12,13]
+# Per-character silhouette. Applied post-sculpt in Character.export() -- after skin weights are
+# computed in the shared, unscaled sculpting space -- to vertices, normals and a copy of BONES,
+# so the FK/skinning math (pure rotation+translation, see characters.js matrix()) stays exact.
+CHAR_SCALE={'boris':(1.0,1.0,1.0),'police':(1.14,1.08,1.10),'rider':(0.88,0.95,0.90)}
+def scale_for(name):return CHAR_SCALE['rider' if name=='rider_far' else name]
 
 def sm(a,b,k=.045):
  h=np.maximum(k-np.abs(a-b),0)/k
@@ -78,7 +83,11 @@ class Character:
   ids,w=weights(p,part);data=np.column_stack((p,n,c,ids,w,np.full(len(p),mat))).astype('f4')
   offset=sum(len(a) for a in self.v);self.v.append(data);self.f.append(f+offset);self.parts.append(dict(name=name,vertices=len(p),triangles=len(f)))
  def export(self):
-  v=np.concatenate(self.v);f=np.concatenate(self.f);assert np.isfinite(v).all();assert len(v)<65535,(self.name,len(v));assert np.allclose(v[:,13:17].sum(1),1)
+  v=np.concatenate(self.v);f=np.concatenate(self.f)
+  sx,sy,sz=scale_for(self.name)
+  v[:,0]*=sx;v[:,1]*=sy;v[:,2]*=sz
+  v[:,3]/=sx;v[:,4]/=sy;v[:,5]/=sz;v[:,3:6]/=np.maximum(1e-9,np.linalg.norm(v[:,3:6],axis=1,keepdims=True))
+  assert np.isfinite(v).all();assert len(v)<65535,(self.name,len(v));assert np.allclose(v[:,13:17].sum(1),1)
   packed=np.zeros((len(v),28),dtype='u1')
   packed[:,:12]=v[:,:3].astype('<f4').copy().view('u1').reshape(-1,12)
   packed[:,12:15]=np.clip(np.rint(v[:,3:6]*127),-127,127).astype('i1').view('u1')
@@ -98,7 +107,7 @@ def build(kind):
  def coat(p):
   torso=union(ell(p,[0,1.23,-.015],[.35 if cop else .26 if rider else .31,.36,.225 if cop else .205 if rider else .22]),ell(p,[0,1.42,-.015],[.38 if cop else .29 if rider else .34,.17,.235]),k=.08)
   for side in [-1,1]:
-   sleeve=union(cap(p,[side*.31,1.46,0],[side*.51,1.17,.015],.13 if rider else .15,.102 if rider else .122),cap(p,[side*.51,1.17,.015],[side*.625,.96,.03],.101 if rider else .12,.081 if rider else .086),k=.065)
+   sleeve=union(cap(p,[side*.31,1.46,0],[side*.51,1.17,.015],.17 if cop else .13 if rider else .15,.135 if cop else .102 if rider else .122),cap(p,[side*.51,1.17,.015],[side*.625,.96,.03],.133 if cop else .101 if rider else .12,.108 if cop else .081 if rider else .086),k=.065)
    torso=sm(torso,sleeve,.09)
   # Sewn waist shaping, folds sculpted into the same sleeve/torso surface.
   x,y,z=p[...,0],p[...,1],p[...,2]
@@ -122,8 +131,8 @@ def build(kind):
   return c
  ch.add('continuous jacket and sleeves',coat,[[-.79,.80,-.34],[.79,1.70,.35]],cloth,'coat',4,.014,fabric)
  def legs(p):
-  d=ell(p,[0,.89,0],[.295,.19,.205])
-  for side in [-1,1]:d=sm(d,union(cap(p,[side*.16,.87,0],[side*.18,.52,.015],.151,.119),cap(p,[side*.18,.53,.015],[side*.18,.17,.025],.12,.087),k=.055),.07)
+  d=ell(p,[0,.89,0],[.325 if cop else .260 if rider else .295,.205 if cop else .165 if rider else .19,.225 if cop else .180 if rider else .205])
+  for side in [-1,1]:d=sm(d,union(cap(p,[side*.16,.87,0],[side*.18,.52,.015],.168 if cop else .128 if rider else .151,.132 if cop else .101 if rider else .119),cap(p,[side*.18,.53,.015],[side*.18,.17,.025],.133 if cop else .102 if rider else .12,.096 if cop else .074 if rider else .087),k=.055),.07)
   return d+.003*np.sin(p[...,1]*110+p[...,2]*25)*np.exp(-((p[...,1]-.50)/.10)**2)
  def denim(p,c):
   x,y,z=p.T
@@ -135,11 +144,15 @@ def build(kind):
  for side,hand,foot in [(-1,5,11),(1,8,14)]:
   hx=side*.637
   def hands(p):
-   d=union(ell(p,[hx,.88,.035],[.072,.105,.048]),cap(p,[hx,.96,.028],[hx,.86,.038],.062,.058),k=.03)
-   for k in range(4):d=sm(d,cap(p,[hx+(k-1.5)*.027,.855,.05],[hx+(k-1.5)*.027,.786+(abs(k-1.5))*.009,.055],.018,.014),.012)
-   return sm(d,cap(p,[hx-side*.047,.90,.045],[hx-side*.082,.847,.063],.023,.017),.022)
+   s=1.08 if cop else .92 if rider else 1.0
+   d=union(ell(p,[hx,.88,.035],[.072*s,.105*s,.048*s]),cap(p,[hx,.96,.028],[hx,.86,.038],.062*s,.058*s),k=.03)
+   for k in range(4):d=sm(d,cap(p,[hx+(k-1.5)*.027,.855,.05],[hx+(k-1.5)*.027,.786+(abs(k-1.5))*.009,.055],.018*s,.014*s),.012)
+   return sm(d,cap(p,[hx-side*.047,.90,.045],[hx-side*.082,.847,.063],.023*s,.017*s),.022)
   ch.add('sculpted hand',hands,[[hx-.13,.75,-.04],[hx+.13,1,.12]],skin,hand,1,.007)
-  def shoe(p):return union(ell(p,[side*.18,.13,.10],[.12,.095,.225]),ell(p,[side*.18,.19,.025],[.095,.16,.115]),k=.04)
+  def shoe(p):
+   m=(1.08,1.05,1.06) if cop else (.88,.82,.90) if rider else (1.,1.,1.)
+   n=(1.08,1.02,1.06) if cop else (.85,.80,.88) if rider else (1.,1.,1.)
+   return union(ell(p,[side*.18,.13,.10],[.12*m[0],.095*m[1],.225*m[2]]),ell(p,[side*.18,.19,.025],[.095*n[0],.16*n[1],.115*n[2]]),k=.04)
   def leather(p,c):
    x,y,z=p.T;c[y<.065]=[.055,.065,.064]
    laces=(y>.193)&(z>.085)&(z<.235)&(abs(x-side*.18)<.075)&(np.mod(z,.037)<.012);c[laces]=[.60,.56,.43] if not rider else [.83,.83,.76]
@@ -147,10 +160,10 @@ def build(kind):
   ch.add('shaped lace-up boot',shoe,[[side*.18-.16,.015,-.15],[side*.18+.16,.37,.36]],[.115,.09,.063] if not rider else [.17,.20,.23],foot,0,.009,leather)
  # Anatomical face is one fused surface, including nose, ears, chin and cheek planes.
  def face(p):
-  d=union(ell(p,[0,1.955,.012],[.244 if cop else .205 if rider else .237,.278,.211]),ell(p,[0,1.795,.052],[.190 if cop else .15 if rider else .175,.141,.167]),cap(p,[0,1.62,0],[0,1.79,.01],.098,.113),k=.07)
+  d=union(ell(p,[0,1.955,.012],[.244 if cop else .205 if rider else .237,.278,.211]),ell(p,[0,1.795,.052],[.190 if cop else .15 if rider else .175,.141,.167]),cap(p,[0,1.62,0],[0,1.79,.01],.108 if cop else .090 if rider else .098,.126 if cop else .102 if rider else .113),k=.07)
   d=union(d,ell(p,[0,1.935,.219],[.063 if cop else .046 if rider else .067,.080 if rider else .090,.077 if cop else .065 if rider else .096]),ell(p,[0,2.002,.178],[.043,.111,.055]),ell(p,[0,1.765,.144],[.105,.065,.061]),k=.04)
   for side in [-1,1]:
-   d=union(d,ell(p,[side*.145,1.898,.117],[.052 if rider else .062,.068,.058 if rider else .069]),ell(p,[side*.228,1.927,.012],[.039,.079,.05]),k=.027)
+   d=union(d,ell(p,[side*.145,1.898,.117],[.070 if cop else .052 if rider else .062,.068,.076 if cop else .058 if rider else .069]),ell(p,[side*.228,1.927,.012],[.039,.079,.05]),k=.027)
    d=np.maximum(d,-ell(p,[side*.088,1.994,.200],[.051,.032,.030]))
   return d
  def complexion(p,c):
@@ -236,5 +249,6 @@ if __name__=='__main__':
  data={};meta=[]
  for name in ['boris','police','rider','rider_far']:
   encoded,m=build(name).export();data[name]=encoded;meta.append(m)
- (OUT/'characters-data.js').write_text('/* Original sculpted meshes. Rebuild with art-source/build_characters.py. */\nwindow.PIVNOY_MODELS='+json.dumps(dict(bones=BONES.tolist(),parents=PARENTS,meshes=data),separators=(',',':'))+';\n')
+ bones={k:(BONES*np.array(CHAR_SCALE[k],dtype='f4')).tolist() for k in ['boris','police','rider']}
+ (OUT/'characters-data.js').write_text('/* Original sculpted meshes. Rebuild with art-source/build_characters.py. */\nwindow.PIVNOY_MODELS='+json.dumps(dict(bones=bones,parents=PARENTS,meshes=data),separators=(',',':'))+';\n')
  (OUT/'art-source'/'models.json').write_text(json.dumps(meta,indent=2))

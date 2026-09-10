@@ -78,43 +78,43 @@
   },
   {
     "name": "police",
-    "vertices": 36245,
-    "triangles": 72206,
+    "vertices": 38187,
+    "triangles": 76078,
     "parts": [
       {
         "name": "continuous jacket and sleeves",
-        "vertices": 6512,
-        "triangles": 13020
+        "vertices": 6982,
+        "triangles": 13960
       },
       {
         "name": "continuous trousers",
-        "vertices": 5122,
-        "triangles": 10240
+        "vertices": 5754,
+        "triangles": 11504
       },
       {
         "name": "sculpted hand",
-        "vertices": 1121,
-        "triangles": 2210
+        "vertices": 1215,
+        "triangles": 2392
       },
       {
         "name": "shaped lace-up boot",
-        "vertices": 2294,
-        "triangles": 4584
+        "vertices": 2544,
+        "triangles": 5084
       },
       {
         "name": "sculpted hand",
-        "vertices": 1121,
-        "triangles": 2210
+        "vertices": 1213,
+        "triangles": 2388
       },
       {
         "name": "shaped lace-up boot",
-        "vertices": 2294,
-        "triangles": 4584
+        "vertices": 2544,
+        "triangles": 5084
       },
       {
         "name": "sculpted face neck ears and nose",
-        "vertices": 10244,
-        "triangles": 20492
+        "vertices": 10398,
+        "triangles": 20800
       },
       {
         "name": "inset eye",
@@ -150,8 +150,8 @@
   },
   {
     "name": "rider",
-    "vertices": 34930,
-    "triangles": 69788,
+    "vertices": 32730,
+    "triangles": 65400,
     "parts": [
       {
         "name": "continuous jacket and sleeves",
@@ -160,33 +160,33 @@
       },
       {
         "name": "continuous trousers",
-        "vertices": 5122,
-        "triangles": 10240
+        "vertices": 4310,
+        "triangles": 8616
       },
       {
         "name": "sculpted hand",
-        "vertices": 1121,
-        "triangles": 2210
+        "vertices": 1020,
+        "triangles": 2014
       },
       {
         "name": "shaped lace-up boot",
-        "vertices": 2294,
-        "triangles": 4584
+        "vertices": 1750,
+        "triangles": 3496
       },
       {
         "name": "sculpted hand",
-        "vertices": 1121,
-        "triangles": 2210
+        "vertices": 1016,
+        "triangles": 2006
       },
       {
         "name": "shaped lace-up boot",
-        "vertices": 2294,
-        "triangles": 4584
+        "vertices": 1750,
+        "triangles": 3496
       },
       {
         "name": "sculpted face neck ears and nose",
-        "vertices": 9492,
-        "triangles": 18984
+        "vertices": 9398,
+        "triangles": 18796
       },
       {
         "name": "inset eye",
@@ -212,8 +212,8 @@
   },
   {
     "name": "rider_far",
-    "vertices": 10105,
-    "triangles": 20156,
+    "vertices": 9457,
+    "triangles": 18872,
     "parts": [
       {
         "name": "continuous jacket and sleeves",
@@ -222,33 +222,33 @@
       },
       {
         "name": "continuous trousers",
-        "vertices": 1546,
-        "triangles": 3088
+        "vertices": 1306,
+        "triangles": 2608
       },
       {
         "name": "sculpted hand",
-        "vertices": 345,
-        "triangles": 674
+        "vertices": 315,
+        "triangles": 620
       },
       {
         "name": "shaped lace-up boot",
-        "vertices": 700,
-        "triangles": 1396
+        "vertices": 534,
+        "triangles": 1064
       },
       {
         "name": "sculpted hand",
-        "vertices": 343,
-        "triangles": 670
+        "vertices": 319,
+        "triangles": 628
       },
       {
         "name": "shaped lace-up boot",
-        "vertices": 700,
-        "triangles": 1396
+        "vertices": 534,
+        "triangles": 1064
       },
       {
         "name": "sculpted face neck ears and nose",
-        "vertices": 2387,
-        "triangles": 4772
+        "vertices": 2365,
+        "triangles": 4728
       },
       {
         "name": "inset eye",

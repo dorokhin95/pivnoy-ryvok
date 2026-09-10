@@ -3,16 +3,20 @@
 const identity=()=>new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
 function mul(a,b){const o=new Float32Array(16);for(let c=0;c<4;c++)for(let r=0;r<4;r++)for(let k=0;k<4;k++)o[c*4+r]+=a[k*4+r]*b[c*4+k];return o;}
 function matrix(t,rx=0,ry=0,rz=0){const cx=Math.cos(rx),sx=Math.sin(rx),cy=Math.cos(ry),sy=Math.sin(ry),cz=Math.cos(rz),sz=Math.sin(rz);return new Float32Array([cz*cy,sz*cy,-sy,0,cz*sy*sx-sz*cx,sz*sy*sx+cz*cx,cy*sx,0,cz*sy*cx+sz*sx,sz*sy*cx-cz*sx,cy*cx,0,...t,1]);}
-function rig(t,slide,pose,kind){const data=window.PIVNOY_MODELS,rest=data.bones,rot=rest.map(()=>[0,0,0]),off=rest.map(()=>[0,0,0]),idle=pose.idle,gait=idle?0:Math.sin(t),air=pose.air||0,roll=pose.roll||0;
+function rig(t,slide,pose,kind){const data=window.PIVNOY_MODELS,rest=data.bones[kind==='rider_far'?'rider':kind]||data.bones.boris,rot=rest.map(()=>[0,0,0]),off=rest.map(()=>[0,0,0]),idle=pose.idle,G=kind==='police'?{amp:.82,freq:.90,arm:.60,sway:.4}:{amp:1,freq:1,arm:1,sway:1},gait=idle?0:Math.sin(t*G.freq)*G.amp,air=pose.air||0,roll=pose.roll||0;
  rot[0]=[(pose.trip||0)*.20,0,-(pose.lean||0)*.13];off[0][1]=idle?Math.sin(t)*.014:Math.abs(Math.cos(t))*.033;
- rot[1]=[.045+air*.07,Math.sin(t)*.035*(idle?.2:1),0];rot[2]=[-.035,Math.sin(t*.32)*.055,0];
+ rot[1]=[.045+air*.07,Math.sin(t)*.035*(idle?.2:1)*G.sway,0];rot[2]=[-.035,Math.sin(t*.32)*.055*G.sway,0];
  for(const [side,ua,fa,th,sh,ft]of [[-1,3,4,9,10,11],[1,6,7,12,13,14]]){
-  const swing=gait*side;rot[ua]=[swing*.54,0,-side*.07];rot[fa]=[-.46-Math.max(0,-swing)*.45,0,0];rot[th]=[-swing*.64,0,side*.025];rot[sh]=[.10+Math.max(0,swing)*.92,0,0];rot[ft]=[-Math.max(0,swing)*.28,0,0];
+  const swing=gait*side,armSwing=swing*G.arm;rot[ua]=[armSwing*.54,0,-side*.07];rot[fa]=[-.46-Math.max(0,-armSwing)*.45,0,0];rot[th]=[-swing*.64,0,side*.025];rot[sh]=[.10+Math.max(0,swing)*.92,0,0];rot[ft]=[-Math.max(0,swing)*.28,0,0];
   if(air>0){rot[th]=[-.52+(side===1?.23:0),0,0];rot[sh]=[.9,0,0];rot[ua]=[-.63,0,-side*.12];rot[fa]=[-.60,0,0];}
  }
  if(kind==='rider'){
+  const kick=Math.sin(t*.62);
   off[0][1]=-.055+Math.sin(t*1.3)*.018;rot[1]=[-.13,0,0];rot[2]=[.13,0,0];
-  for(const [side,ua,fa,th,sh]of [[-1,3,4,9,10],[1,6,7,12,13]]){rot[ua]=[-1.2794,0,-side*1.20];rot[fa]=[-.0075,0,-side*.223];rot[th]=[side*.13,0,0];rot[sh]=[.18,0,0];}
+  for(const [side,ua,fa]of [[-1,3,4],[1,6,7]]){rot[ua]=[-1.2794,0,-side*1.20];rot[fa]=[-.0075,0,-side*.223];}
+  // Left leg plants on the deck with a light suspension flex; right leg kicks back to push off and recovers forward.
+  rot[9]=[-.15+Math.max(0,kick)*.07,0,0];rot[10]=[.20+Math.max(0,kick)*.14,0,0];
+  rot[12]=[.15+kick*.42,0,0];rot[13]=[.22+Math.max(0,-kick)*.50,0,0];
  }
  if(slide>0){off[0][1]-=.46*slide;rot[1][0]=-.65*slide;rot[2][0]=.43*slide;for(const [ua,fa,th,sh]of [[3,4,9,10],[6,7,12,13]]){rot[ua]=[-1.0*slide,0,0];rot[fa]=[-1.15*slide,0,0];rot[th]=[-1.30*slide,0,0];rot[sh]=[2.1*slide,0,0];}}
  if(pose.arrest){rot[1][0]=-.12;rot[3][0]=rot[6][0]=-.60;rot[4][0]=rot[7][0]=-.65;}
@@ -31,7 +35,7 @@ mat2 turn=mat2(cos(yaw),-sin(yaw),sin(yaw),cos(yaw));p.xz=turn*p.xz;n.xz=turn*n.
 vWorld=p;vNormal=normalize(n);vColor=albedo*(material>3.5?tint:vec3(1.));vMaterial=material;
 vec3 v=p-vec3(0.,5.2,-8.);float y=v.y*.951+v.z*.309;float z=-v.y*.309+v.z*.951;gl_Position=vec4(v.x*1.64/aspect,y*1.64,z*1.002-.2002,z);vFog=clamp((z-38.)/55.,0.,1.);}`;
  const fs=`precision mediump float;varying vec3 vNormal;varying vec3 vColor;varying vec3 vWorld;varying float vMaterial;varying float vFog;
-void main(){vec3 n=normalize(vNormal),light=normalize(vec3(-.42,.78,-.50)),eye=normalize(vec3(0.,5.2,-8.)-vWorld);float diffuse=max(0.,dot(n,light)),fill=max(0.,dot(n,normalize(vec3(.7,.3,.6))));vec3 color=vColor*(.40+.66*diffuse+.19*fill);float skin=step(.5,vMaterial)*(1.-step(1.5,vMaterial));float shiny=step(1.5,vMaterial)*(1.-step(2.5,vMaterial));float spec=pow(max(0.,dot(n,normalize(light+eye))),mix(16.,65.,shiny));color+=vec3(.98,.85,.65)*spec*(.035+skin*.09+shiny*.30);color+=vec3(.25,.37,.40)*pow(1.-max(0.,dot(n,eye)),3.)*.20;color=mix(color,vec3(.48,.67,.72),vFog);gl_FragColor=vec4(color,1.);}`;
+void main(){vec3 n=normalize(vNormal),light=normalize(vec3(-.42,.78,-.50)),eye=normalize(vec3(0.,5.2,-8.)-vWorld);float diffuse=max(0.,dot(n,light)),fill=max(0.,dot(n,normalize(vec3(.7,.3,.6))));vec3 color=vColor*(.40+.66*diffuse+.19*fill);float skin=step(.5,vMaterial)*(1.-step(1.5,vMaterial));float shiny=step(1.5,vMaterial)*(1.-step(2.5,vMaterial));float fabric=step(3.5,vMaterial);float spec=pow(max(0.,dot(n,normalize(light+eye))),mix(16.,65.,shiny));color+=vec3(.98,.85,.65)*spec*(.035+skin*.09+shiny*.30);float fspec=pow(max(0.,dot(n,normalize(light+eye))),6.0);color+=vec3(.85,.88,.86)*fspec*fabric*.05;color+=vec3(.27,.40,.44)*pow(1.-max(0.,dot(n,eye)),3.)*.22;color=mix(color,vec3(.48,.67,.72),vFog);gl_FragColor=vec4(color,1.);}`;
  const compile=(type,source)=>{const sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;};
  this.program=gl.createProgram();gl.attachShader(this.program,compile(gl.VERTEX_SHADER,vs));gl.attachShader(this.program,compile(gl.FRAGMENT_SHADER,fs));gl.linkProgram(this.program);if(!gl.getProgramParameter(this.program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(this.program));
  this.attrs=[['position',3,0,gl.FLOAT,false],['normal',3,12,gl.BYTE,true],['albedo',3,15,gl.UNSIGNED_BYTE,true],['joints',4,18,gl.UNSIGNED_BYTE,false],['weights',4,22,gl.UNSIGNED_BYTE,true],['material',1,26,gl.UNSIGNED_BYTE,false]].map(([n,size,offset,type,normalized])=>({loc:gl.getAttribLocation(this.program,n),size,offset,type,normalized}));
