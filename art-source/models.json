@@ -1,0 +1,275 @@
+[
+  {
+    "name": "boris",
+    "vertices": 43337,
+    "triangles": 86908,
+    "parts": [
+      {
+        "name": "continuous jacket and sleeves",
+        "vertices": 6464,
+        "triangles": 12924
+      },
+      {
+        "name": "continuous trousers",
+        "vertices": 5122,
+        "triangles": 10240
+      },
+      {
+        "name": "sculpted hand",
+        "vertices": 1121,
+        "triangles": 2210
+      },
+      {
+        "name": "shaped lace-up boot",
+        "vertices": 2294,
+        "triangles": 4584
+      },
+      {
+        "name": "sculpted hand",
+        "vertices": 1121,
+        "triangles": 2210
+      },
+      {
+        "name": "shaped lace-up boot",
+        "vertices": 2294,
+        "triangles": 4584
+      },
+      {
+        "name": "sculpted face neck ears and nose",
+        "vertices": 10169,
+        "triangles": 20340
+      },
+      {
+        "name": "inset eye",
+        "vertices": 322,
+        "triangles": 640
+      },
+      {
+        "name": "inset eye",
+        "vertices": 322,
+        "triangles": 640
+      },
+      {
+        "name": "combed continuous beard",
+        "vertices": 2942,
+        "triangles": 5880
+      },
+      {
+        "name": "ribbed wool beanie",
+        "vertices": 6942,
+        "triangles": 14220
+      },
+      {
+        "name": "tailored canvas rucksack",
+        "vertices": 3530,
+        "triangles": 7056
+      },
+      {
+        "name": "backpack shoulder strap",
+        "vertices": 348,
+        "triangles": 692
+      },
+      {
+        "name": "backpack shoulder strap",
+        "vertices": 346,
+        "triangles": 688
+      }
+    ]
+  },
+  {
+    "name": "police",
+    "vertices": 36245,
+    "triangles": 72206,
+    "parts": [
+      {
+        "name": "continuous jacket and sleeves",
+        "vertices": 6512,
+        "triangles": 13020
+      },
+      {
+        "name": "continuous trousers",
+        "vertices": 5122,
+        "triangles": 10240
+      },
+      {
+        "name": "sculpted hand",
+        "vertices": 1121,
+        "triangles": 2210
+      },
+      {
+        "name": "shaped lace-up boot",
+        "vertices": 2294,
+        "triangles": 4584
+      },
+      {
+        "name": "sculpted hand",
+        "vertices": 1121,
+        "triangles": 2210
+      },
+      {
+        "name": "shaped lace-up boot",
+        "vertices": 2294,
+        "triangles": 4584
+      },
+      {
+        "name": "sculpted face neck ears and nose",
+        "vertices": 10244,
+        "triangles": 20492
+      },
+      {
+        "name": "inset eye",
+        "vertices": 322,
+        "triangles": 640
+      },
+      {
+        "name": "inset eye",
+        "vertices": 322,
+        "triangles": 640
+      },
+      {
+        "name": "shaped moustache",
+        "vertices": 602,
+        "triangles": 1200
+      },
+      {
+        "name": "shaped peaked cap and visor",
+        "vertices": 4832,
+        "triangles": 9660
+      },
+      {
+        "name": "duty belt",
+        "vertices": 933,
+        "triangles": 1678
+      },
+      {
+        "name": "radio",
+        "vertices": 526,
+        "triangles": 1048
+      }
+    ]
+  },
+  {
+    "name": "rider",
+    "vertices": 34930,
+    "triangles": 69788,
+    "parts": [
+      {
+        "name": "continuous jacket and sleeves",
+        "vertices": 5920,
+        "triangles": 11836
+      },
+      {
+        "name": "continuous trousers",
+        "vertices": 5122,
+        "triangles": 10240
+      },
+      {
+        "name": "sculpted hand",
+        "vertices": 1121,
+        "triangles": 2210
+      },
+      {
+        "name": "shaped lace-up boot",
+        "vertices": 2294,
+        "triangles": 4584
+      },
+      {
+        "name": "sculpted hand",
+        "vertices": 1121,
+        "triangles": 2210
+      },
+      {
+        "name": "shaped lace-up boot",
+        "vertices": 2294,
+        "triangles": 4584
+      },
+      {
+        "name": "sculpted face neck ears and nose",
+        "vertices": 9492,
+        "triangles": 18984
+      },
+      {
+        "name": "inset eye",
+        "vertices": 322,
+        "triangles": 640
+      },
+      {
+        "name": "inset eye",
+        "vertices": 322,
+        "triangles": 640
+      },
+      {
+        "name": "hood draped over shoulders",
+        "vertices": 2836,
+        "triangles": 5692
+      },
+      {
+        "name": "vented bicycle helmet",
+        "vertices": 4086,
+        "triangles": 8168
+      }
+    ]
+  },
+  {
+    "name": "rider_far",
+    "vertices": 10105,
+    "triangles": 20156,
+    "parts": [
+      {
+        "name": "continuous jacket and sleeves",
+        "vertices": 1794,
+        "triangles": 3584
+      },
+      {
+        "name": "continuous trousers",
+        "vertices": 1546,
+        "triangles": 3088
+      },
+      {
+        "name": "sculpted hand",
+        "vertices": 345,
+        "triangles": 674
+      },
+      {
+        "name": "shaped lace-up boot",
+        "vertices": 700,
+        "triangles": 1396
+      },
+      {
+        "name": "sculpted hand",
+        "vertices": 343,
+        "triangles": 670
+      },
+      {
+        "name": "shaped lace-up boot",
+        "vertices": 700,
+        "triangles": 1396
+      },
+      {
+        "name": "sculpted face neck ears and nose",
+        "vertices": 2387,
+        "triangles": 4772
+      },
+      {
+        "name": "inset eye",
+        "vertices": 88,
+        "triangles": 172
+      },
+      {
+        "name": "inset eye",
+        "vertices": 88,
+        "triangles": 172
+      },
+      {
+        "name": "hood draped over shoulders",
+        "vertices": 852,
+        "triangles": 1712
+      },
+      {
+        "name": "vented bicycle helmet",
+        "vertices": 1262,
+        "triangles": 2520
+      }
+    ]
+  }
+]

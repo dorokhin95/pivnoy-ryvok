@@ -1,0 +1,3 @@
+# Local Claude Code session state — not project content
+.claude/*
+!.claude/launch.json
