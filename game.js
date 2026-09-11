@@ -74,7 +74,7 @@ let vertices=new Float32Array(3600000),vi=0,glassQueue=[];const faces=[[0,1,2,0,
 let mat=0;const pack=c=>(Math.max(0,Math.min(255,c[0]*255))|0)*65536+(Math.max(0,Math.min(255,c[1]*255))|0)*256+(Math.max(0,Math.min(255,c[2]*255))|0);
 function box(x,y,z,w,h,d,col,rot=0){const cs=Math.cos(rot),sn=Math.sin(rot),pts=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]].map(p=>{const a=p[0]*w/2,b=p[2]*d/2;return[x+a*cs+b*sn,y+p[1]*h/2,z+b*cs-a*sn]}),pc=pack(col);for(const f of faces){const nx=f[6]*cs+f[8]*sn,ny=f[7],nz=f[8]*cs-f[6]*sn;for(let j=0;j<6;j++){const p=pts[f[j]];vertices[vi++]=p[0];vertices[vi++]=p[1];vertices[vi++]=p[2];vertices[vi++]=nx;vertices[vi++]=ny;vertices[vi++]=nz;vertices[vi++]=pc;vertices[vi++]=mat}}}
 // Outfits are separate garment meshes (skins/boris-N.js) on Boris's shared head and hands; they load on demand.
-const VER='1.9.15';const skins=[{name:'Дворовый классик',color:[.82,.80,.74],price:0,desc:'Рваная футболка, драные шорты, один ботинок с дыркой, второй просто грязный'},{name:'Король теплотрассы',color:[.34,.39,.23],price:1500,desc:'Стёганый ватник, вязаная шапка, рюкзак с одеялом и бутылкой'},{name:'Бомжставка',color:[.98,.78,.10],price:3000,desc:'Жёлтая куртка курьера, кепка и термокороб «Бомжставка» за спиной'},{name:'Abibas',color:[.09,.09,.11],price:5000,desc:'Чёрный спортивный костюм с четырьмя полосами, кепка и золотая цепь'}];
+const VER='1.9.16';const skins=[{name:'Дворовый классик',color:[.82,.80,.74],price:0,desc:'Рваная футболка, драные шорты, один ботинок с дыркой, второй просто грязный'},{name:'Король теплотрассы',color:[.34,.39,.23],price:7500,desc:'Стёганый ватник, вязаная шапка, рюкзак с одеялом и бутылкой'},{name:'Бомжставка',color:[.98,.78,.10],price:15000,desc:'Жёлтая куртка курьера, кепка и термокороб «Бомжставка» за спиной'},{name:'Abibas',color:[.09,.09,.11],price:25000,desc:'Чёрный спортивный костюм с четырьмя полосами, кепка и золотая цепь'}];
 const skinLoads={};function loadSkin(i){if(skinLoads[i]||(window.PIVNOY_SKINS&&window.PIVNOY_SKINS[i]))return;skinLoads[i]=true;const s=document.createElement('script');s.src=`skins/boris-${i}.js?v=${VER}`;s.onerror=()=>{skinLoads[i]=false;toast('Не удалось загрузить образ')};document.head.append(s);}
 // Smooth, lit procedural meshes and articulated limbs. All geometry is original.
 function vertex(p,n,c){vertices[vi++]=p[0];vertices[vi++]=p[1];vertices[vi++]=p[2];vertices[vi++]=n[0];vertices[vi++]=n[1];vertices[vi++]=n[2];vertices[vi++]=pack(c);vertices[vi++]=mat;}
@@ -143,7 +143,11 @@ function barrier(x,z,variant=0,broken){mat=6;
   for(let k=0;k<5;k++)box(x-.78+k*.33,.60,z-.10,.14,.30,.012,[.96,.90,.72],-.46);
   mat=12;box(x-.30,.14,z-.20,.14,.11,.14,[.32,.19,.12],.4);mat=0;
  } else {
-  for(const s of [-1,1]){box(x+s*.70,.12,z,.28,.24,.5,[.55,.56,.53]);box(x+s*.70,.62,z,.09,.8,.09,[.90,.39,.17]);}box(x,.72,z,1.65,.34,.10,[.90,.39,.17]);box(x,1.02,z,1.65,.16,.09,[.90,.39,.17]);box(x,.38,z,1.65,.10,.08,[.90,.39,.17]);for(let k=0;k<5;k++)box(x-.66+k*.33,.72,z-.055,.14,.30,.012,[.96,.90,.72]);mat=12;box(x-.62,1.20,z,.14,.14,.14,Math.floor(time*2.2+variant)%2===0?[1,.62,.20]:[.55,.30,.12]);mat=0;
+  for(const s of [-1,1]){box(x+s*.70,.12,z,.28,.24,.5,[.55,.56,.53]);box(x+s*.70,.62,z,.09,.8,.09,[.90,.39,.17]);}box(x,.72,z,1.65,.34,.10,[.90,.39,.17]);box(x,1.02,z,1.65,.16,.09,[.90,.39,.17]);box(x,.38,z,1.65,.10,.08,[.90,.39,.17]);for(let k=0;k<5;k++)box(x-.66+k*.33,.72,z-.055,.14,.30,.012,[.96,.90,.72]);mat=12;box(x-.62,1.20,z,.14,.14,.14,Math.floor(time*2.2+variant)%2===0?[1,.62,.20]:[.55,.30,.12]);
+  // Bolt caps at each post's foot, and a reflective strip low on the boards -- catches headlights at night.
+  mat=9;for(const s of [-1,1])for(const by of [.05,.19])ellipsoid(x+s*.70,by,z+.255,.03,.03,.03,[.10,.11,.12],5,3);
+  mat=7;box(x,.44,z-.052,1.45,.07,.006,[.92,.88,.30]);
+  mat=0;
  }}
 // The red crossbar you roll under: posts on plates, a beam with hazard stripes and a height sign.
 function crossbar(x,z,broken){mat=6;
@@ -157,12 +161,17 @@ function crossbar(x,z,broken){mat=6;
   box(x+.62,.22,z+.55,1.15,.10,.02,[.95,.92,.85],1.15);
   mat=0;
  } else {
-  for(const s of [-.8,.8]){box(x+s,1.3,z,.14,2.6,.16,[.62,.24,.19]);box(x+s,.06,z,.36,.12,.36,[.40,.42,.40]);}box(x,1.97,z,1.75,.65,.3,[.78,.25,.15]);for(let k=0;k<6;k++)box(x-.75+k*.3,1.97,z-.16,.15,.55,.02,k%2?[.97,.79,.51]:[.14,.14,.14]);box(x,1.64,z-.17,1.2,.12,.02,[.95,.92,.85]);mat=0;
+  for(const s of [-.8,.8]){box(x+s,1.3,z,.14,2.6,.16,[.62,.24,.19]);box(x+s,.06,z,.36,.12,.36,[.40,.42,.40]);}box(x,1.97,z,1.75,.65,.3,[.78,.25,.15]);for(let k=0;k<6;k++)box(x-.75+k*.3,1.97,z-.16,.15,.55,.02,k%2?[.97,.79,.51]:[.14,.14,.14]);box(x,1.64,z-.17,1.2,.12,.02,[.95,.92,.85]);
+  // A round reflector on each post at eye height and a bolt plate under the beam.
+  mat=12;for(const s of [-.8,.8])ellipsoid(x+s,.9,z+.09,.045,.045,.02,[.95,.20,.15],6,3);
+  mat=9;box(x,1.66,z,1.6,.04,.05,[.20,.21,.22]);mat=0;
  }}
 // Debris: crates, a tyre and a plank.
 function debris(x,z,variant=0){mat=5;box(x-.45,.16,z-.05,.42,.32,.40,[.55,.36,.18],.25);box(x+.32,.14,z+.20,.36,.28,.34,[.48,.30,.15],-.4);box(x-.1,.44,z,.30,.24,.28,[.60,.42,.22],.6);for(const k of [-1,1])box(x-.45+k*.15,.16,z-.26,.03,.30,.02,[.30,.20,.10],.25);mat=9;ellipsoid(x+.55,.12,z-.35,.30,.12,.30,[.08,.09,.10],10,4);mat=5;box(x+.1,.05,z+.45,1.3,.04,.18,[.62,.46,.26],.3);mat=0;}
 // Kick scooter: deck, stem (towards d: +1 for Boris facing +z, -1 for oncoming couriers), bar with grips, fenders, wheels, bell.
-function scooterProp(x,y,z,d,deck,pole,roll=0){mat=6;box(x,y+.18,z,.22,.17,1.2,deck);box(x,y+.8,z+d*.47,.10,1.4,.1,pole);box(x,y+1.5,z+d*.47,.7,.08,.08,colors.dark);box(x,y+.30,z+d*.62,.20,.24,.06,pole);for(const zz of [-.5,.5]){wheel(x,y+.17,z+zz,.17,.10,1,roll);mat=6;box(x,y+.36,z+zz,.12,.03,.3,[.35,.37,.36]);}mat=9;box(x,y+.28,z,.29,.025,.8,[.47,.48,.44]);for(const side of [-1,1])box(x+side*.28,y+1.5,z+d*.47,.17,.11,.11,[.14,.16,.15]);mat=6;box(x+.30,y+1.52,z+d*.47,.06,.06,.06,[.80,.72,.30]);mat=0;}
+function scooterProp(x,y,z,d,deck,pole,roll=0){mat=6;box(x,y+.18,z,.22,.17,1.2,deck);box(x,y+.8,z+d*.47,.10,1.4,.1,pole);box(x,y+1.5,z+d*.47,.7,.08,.08,colors.dark);box(x,y+.30,z+d*.62,.20,.24,.06,pole);for(const zz of [-.5,.5]){wheel(x,y+.17,z+zz,.17,.10,1,roll);mat=6;box(x,y+.36,z+zz,.12,.03,.3,[.35,.37,.36]);}mat=9;box(x,y+.28,z,.29,.025,.8,[.47,.48,.44]);for(const side of [-1,1])box(x+side*.28,y+1.5,z+d*.47,.17,.11,.11,[.14,.16,.15]);mat=6;box(x+.30,y+1.52,z+d*.47,.06,.06,.06,[.80,.72,.30]);
+ // Rear fender brake: the curved flap over the back wheel you step on to press it down onto the tyre.
+ mat=6;boxX(x,y+.36,z-d*.58,.15,.30,.03,[.24,.25,.27],-d*.60);mat=0;}
 // A knocked-down courier: the scooter lies on its side, the rider sprawls next to it.
 function crashedScooter(x,z,o){const s=(o.hue||0)>3?-1:1,k=Math.min(1,o.crash/.5);mat=6;box(x+s*.12,.11,z,.17,.22,1.2,colors.dark);box(x-s*.7,.06,z-.47,1.4,.1,.1,[.84,.78,.3]);box(x-s*1.4,.06,z-.47,.08,.08,.7,colors.dark);mat=9;for(const zz of [-.5,.5])ellipsoid(x+s*.05,.10,z+zz,.17,.10,.17,[.07,.085,.09],8,4);mat=0;person(x-s*.6,0,z+.6,time*2,[.55,.24,.13],false,false,{rider:true,yaw:Math.PI+s*.5,fall:k,hue:o.hue||0});}
 // Jetpack on Boris's back: two tanks, nozzles and flickering flames.
