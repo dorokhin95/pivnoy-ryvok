@@ -55,7 +55,10 @@ function rig(t,slide,pose,kind){
   // Boris on his own speed-boost scooter: unlike the oncoming riders above (one foot planted, one leg kick-pushing),
   // he isn't propelling it himself -- both feet stay planted side by side on the deck, knees flexed evenly for
   // balance, so he reads as standing and riding rather than one leg dangling/swinging free.
-  const bump=Math.sin(t*1.3),sway=Math.sin(t*.9)*.035;
+  // The idle sway below has to run off real elapsed time (rideT), not t -- t is animTime, which advances with
+  // Boris's own ground speed (and the perk itself boosts that speed 1.3x), so at speed this sine was completing
+  // several cycles a second and read as a twitch instead of a gentle bounce.
+  const rt=pose.rideT??t,bump=Math.sin(rt*1.3),sway=Math.sin(rt*.9)*.035;
   off[0][1]=-.09+bump*.012;rot[1]=[-.10,sway,0];rot[2]=[.11,-sway*.6,0];
   for(const [side,ua,fa]of [[-1,3,4],[1,6,7]]){rot[ua]=[-1.30,0,-side*1.15];rot[fa]=[-.04+bump*.015,0,-side*.20];}
   for(const [side,th,sh]of [[-1,9,10],[1,12,13]]){rot[th]=[-.16+bump*.02,0,side*.05];rot[sh]=[.24-bump*.02,0,0];}
