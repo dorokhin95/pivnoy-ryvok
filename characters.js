@@ -12,13 +12,13 @@ const SIDES=[[-1,3,4,9,10,11],[1,6,7,12,13,14]];
 function rig(t,slide,pose,kind){
  const data=window.PIVNOY_MODELS,rest=data.bones[kind==='rider_far'?'rider':kind]||data.bones.boris,nb=rest.length;
  const rot=rest.map(()=>[0,0,0]),off=rest.map(()=>[0,0,0]),idle=pose.idle,G=GAIT[kind]||GAIT.boris;
- const speed=clamp(pose.speed||0,0,1),stride=G.amp*(1+.18*speed),w=t*G.freq;
- const gait=idle?0:Math.sin(w)*stride,lag=idle?0:Math.sin(w-.42)*stride,air=pose.air||0,lean=pose.lean||0,trip=pose.trip||0,vy=pose.vy||0,up=clamp(vy/9.8,-1,1),pr=pose.roll||0;
+ const speed=clamp(pose.speed||0,0,1),boots=pose.boots||0,stride=G.amp*(1+.18*speed)*(1+.30*boots),w=t*G.freq;
+ const gait=idle?0:Math.sin(w)*stride,lag=idle?0:Math.sin(w-.42)*stride,air=pose.air||0,lean=pose.lean||0,trip=pose.trip||0,vy=pose.vy||0,up=clamp(vy/(9.8*(1+.39*boots)),-1,1),pr=pose.roll||0;
  // Two bounces per stride: lowest at mid-stance (legs together), highest in flight (legs apart).
  const ph=idle?0:Math.sin(w),bounce=ph*ph,bob=idle?0:Math.sin(2*w-1.1);
  // Pelvis: lean grows with speed, hips yaw and roll with the stride, bank into a lane change.
  rot[0]=[trip*.20+.04*speed,-gait*.06+lean*.10,-lean*.13+gait*.05];
- off[0][1]=idle?Math.sin(t)*.014:bounce*.036;off[0][2]=idle?Math.sin(t*.7)*.006:0;
+ off[0][1]=idle?Math.sin(t)*.014:bounce*.036*(1+.55*boots);off[0][2]=idle?Math.sin(t*.7)*.006:0;
  // Chest counters the hips and turns into the lane change; the head stays level, nods with the bounce and leads the turn.
  rot[1]=[.045+.10*speed+air*.07,Math.sin(t)*.035*(idle?.2:1)*G.sway+gait*.08+lean*.22,-gait*.03];
  rot[2]=[-.035-.05*speed-bounce*.03,Math.sin(t*.32)*.055*G.sway+lean*.15,lean*.09-gait*.02];
@@ -111,20 +111,20 @@ function rig(t,slide,pose,kind){
 class CharacterRenderer{
  constructor(gl){this.gl=gl;this.queue=[];this.meshes={};const NB=window.PIVNOY_MODELS.parents.length;const vs=`precision highp float;
 attribute vec3 position;attribute vec3 normal;attribute vec3 albedo;attribute vec4 joints;attribute vec4 weights;attribute float material;attribute float ao;
-uniform mat4 bones[${NB}];uniform vec3 origin;uniform float aspect;uniform float yaw;uniform vec3 tint;uniform float stretch;uniform mediump float shadowPass;
+uniform mat4 bones[${NB}];uniform vec3 origin;uniform float aspect;uniform float yaw;uniform vec3 tint;uniform float stretch;uniform mediump float shadowPass;uniform mediump float camY;
 varying vec3 vNormal;varying vec3 vColor;varying vec3 vWorld;varying vec3 vRest;varying float vMaterial;varying float vFog;varying float vAO;
 void main(){vec3 pos=position*(1./8192.);mat4 skin=bones[int(joints.x)]*weights.x+bones[int(joints.y)]*weights.y+bones[int(joints.z)]*weights.z+bones[int(joints.w)]*weights.w;vec3 p=(skin*vec4(pos,1.)).xyz;vec3 n=mat3(skin)*normal;
 p.y*=1.+stretch;p.xz*=1.-stretch*.5;
 mat2 turn=mat2(cos(yaw),-sin(yaw),sin(yaw),cos(yaw));p.xz=turn*p.xz;n.xz=turn*n.xz;p+=origin;if(shadowPass>.5){vec3 L=normalize(vec3(-.42,.78,-.50));p=p-L*((p.y-.045)/L.y);}
 vWorld=p;vRest=pos;vNormal=normalize(n);vAO=ao;vMaterial=material;
 vColor=albedo*((material>3.5&&material<5.5)?tint:vec3(1.));
-vec3 v=p-vec3(0.,5.2,-8.);float y=v.y*.951+v.z*.309;float z=-v.y*.309+v.z*.951;gl_Position=vec4(v.x*1.64/aspect,y*1.64,z*1.002-.2002,z);vFog=clamp((z-30.)/70.,0.,1.);}`;
+vec3 v=p-vec3(0.,5.2+camY,-8.);float y=v.y*.951+v.z*.309;float z=-v.y*.309+v.z*.951;gl_Position=vec4(v.x*1.64/aspect,y*1.64,z*1.002-.2002,z);vFog=clamp((z-30.)/70.,0.,1.);}`;
  const fs=`precision mediump float;varying vec3 vNormal;varying vec3 vColor;varying vec3 vWorld;varying vec3 vRest;varying float vMaterial;varying float vFog;varying float vAO;uniform float hue;uniform float day;uniform float dusk;uniform vec3 fog;uniform float scroll;
 vec3 lamps(vec3 P,vec3 W,vec3 n){float k=floor((P.z-3.)/32.+.5);vec3 acc=vec3(0.);for(int i=-1;i<=1;i++){float lz=(k+float(i))*32.+3.-scroll;for(int s=-1;s<=1;s+=2){vec3 d=vec3(float(s)*3.95,5.1,lz)-W;float d2=dot(d,d);acc+=max(0.,dot(n,d*inversesqrt(d2)))*(4.4/(1.+d2*.06));}}return acc*vec3(1.,.80,.50);}
 float hash(vec3 q){return fract(sin(dot(q,vec3(12.9898,78.233,37.719)))*43758.5453);}
-float band(float lo,float hi){return step(lo,vMaterial)*(1.-step(hi,vMaterial));}uniform mediump float shadowPass;
+float band(float lo,float hi){return step(lo,vMaterial)*(1.-step(hi,vMaterial));}uniform mediump float shadowPass;uniform mediump float camY;
 void main(){ if(shadowPass>.5){gl_FragColor=vec4(.02,.04,.07,.46*(.25+.75*day));return;}
- vec3 n=normalize(vNormal),L=normalize(vec3(-.42,.78,-.50)),eye=normalize(vec3(0.,5.2,-8.)-vWorld),r=vRest;
+ vec3 n=normalize(vNormal),L=normalize(vec3(-.42,.78,-.50)),eye=normalize(vec3(0.,5.2+camY,-8.)-vWorld),r=vRest;
  float isSkin=band(.5,1.5),isEye=band(1.5,2.5),isLeather=band(2.5,3.5),isCloth=band(3.5,4.5),isQuilt=band(4.5,5.5),isKnit=band(5.5,6.5),isMetal=band(6.5,7.5),isHair=band(7.5,8.5),isRubber=band(8.5,9.5),isPlastic=step(9.5,vMaterial);
  // Procedural micro-texture in rest space: fabric grain, quilting seams, knit ribs, hair strands.
  float grain=hash(floor(r*150.))-.5;
@@ -161,7 +161,7 @@ void main(){ if(shadowPass>.5){gl_FragColor=vec4(.02,.04,.07,.46*(.25+.75*day));
  const compile=(type,source)=>{const sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;};
  this.program=gl.createProgram();gl.attachShader(this.program,compile(gl.VERTEX_SHADER,vs));gl.attachShader(this.program,compile(gl.FRAGMENT_SHADER,fs));gl.linkProgram(this.program);if(!gl.getProgramParameter(this.program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(this.program));
  this.attrs=[['position',3,0,gl.SHORT,false],['normal',3,6,gl.BYTE,true],['albedo',3,9,gl.UNSIGNED_BYTE,true],['joints',4,12,gl.UNSIGNED_BYTE,false],['weights',4,16,gl.UNSIGNED_BYTE,true],['material',1,20,gl.UNSIGNED_BYTE,false],['ao',1,21,gl.UNSIGNED_BYTE,true]].map(([n,size,offset,type,normalized])=>({loc:gl.getAttribLocation(this.program,n),size,offset,type,normalized}));
- this.uniforms=Object.fromEntries(['bones[0]','origin','aspect','yaw','tint','stretch','shadowPass','hue','day','dusk','fog','scroll'].map(n=>[n,gl.getUniformLocation(this.program,n)]));
+ this.uniforms=Object.fromEntries(['bones[0]','origin','aspect','yaw','tint','stretch','shadowPass','hue','day','dusk','fog','scroll','camY'].map(n=>[n,gl.getUniformLocation(this.program,n)]));
  // Each character is a list of chunks (uint16 index limit); all chunks share the same bone matrices.
  this.skins={};for(const [kind,chunks]of Object.entries(window.PIVNOY_MODELS.meshes))this.meshes[kind]=this.decode(chunks);
  }
@@ -170,8 +170,8 @@ void main(){ if(shadowPass>.5){gl_FragColor=vec4(.02,.04,.07,.46*(.25+.75*day));
  outfit(i){if(!this.skins[i]){const src=window.PIVNOY_SKINS&&window.PIVNOY_SKINS[i];if(src)this.skins[i]=this.decode(src);}return this.skins[i]||this.skins[0]||[];}
  parts(a){if(a.kind==='boris')return this.meshes.boris.concat(this.outfit(a.pose.skin|0));return this.meshes[a.kind==='rider'&&a.z>28?'rider_far':a.kind];}
  add(kind,x,y,z,t,c,slide,pose){this.queue.push({kind,x,y,z,t,c,slide,pose});}
- setLight(day,dusk,fog,scroll){this.light={day,dusk,fog,scroll};}
- draw(aspect,shadows=false){const gl=this.gl,u=this.uniforms,L=this.light||{day:1,dusk:0,fog:[.68,.79,.87],scroll:0};gl.useProgram(this.program);gl.uniform1f(u.aspect,aspect);gl.uniform1f(u.shadowPass,0);gl.uniform1f(u.day,L.day);gl.uniform1f(u.dusk,L.dusk);gl.uniform3f(u.fog,L.fog[0],L.fog[1],L.fog[2]);gl.uniform1f(u.scroll,L.scroll);
+ setLight(day,dusk,fog,scroll,camY){this.light={day,dusk,fog,scroll,camY};}
+ draw(aspect,shadows=false){const gl=this.gl,u=this.uniforms,L=this.light||{day:1,dusk:0,fog:[.68,.79,.87],scroll:0};gl.useProgram(this.program);gl.uniform1f(u.aspect,aspect);gl.uniform1f(u.shadowPass,0);gl.uniform1f(u.day,L.day);gl.uniform1f(u.dusk,L.dusk);gl.uniform3f(u.fog,L.fog[0],L.fog[1],L.fog[2]);gl.uniform1f(u.scroll,L.scroll);gl.uniform1f(u.camY,L.camY||0);
   const emit=a=>{const parts=this.parts(a);gl.uniformMatrix4fv(u['bones[0]'],false,a.bones);gl.uniform3f(u.origin,a.x,a.y,a.z);gl.uniform1f(u.yaw,a.pose.yaw||0);gl.uniform1f(u.hue,a.pose.hue||0);gl.uniform1f(u.stretch,a.pose.roll>0?0:(a.pose.stretch||0));gl.uniform3f(u.tint,1,1,1);
    for(const m of parts){gl.bindBuffer(gl.ARRAY_BUFFER,m.vb);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.ib);for(const at of this.attrs){gl.enableVertexAttribArray(at.loc);gl.vertexAttribPointer(at.loc,at.size,at.type,at.normalized,STRIDE,at.offset);}gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_SHORT,0);}};
   for(const a of this.queue){a.bones=rig(a.t,a.slide,a.pose,a.kind);emit(a);}
