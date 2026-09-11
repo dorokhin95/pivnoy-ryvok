@@ -12,15 +12,17 @@ const SIDES=[[-1,3,4,9,10,11],[1,6,7,12,13,14]];
 function rig(t,slide,pose,kind){
  const data=window.PIVNOY_MODELS,rest=data.bones[kind==='rider_far'?'rider':kind]||data.bones.boris,nb=rest.length;
  const rot=rest.map(()=>[0,0,0]),off=rest.map(()=>[0,0,0]),idle=pose.idle,G=GAIT[kind]||GAIT.boris;
- const speed=clamp(pose.speed||0,0,1),boots=pose.boots||0,stride=G.amp*(1+.18*speed)*(1+.30*boots),w=t*G.freq;
+ // Sneakers perk: a longer, springier, quicker-turnover bounding stride -- reads as "better shoes", not just "same
+ // run, bigger jump". boots feeds the stride reach, cadence and knee lift below, on top of the higher jump itself.
+ const speed=clamp(pose.speed||0,0,1),boots=pose.boots||0,stride=G.amp*(1+.18*speed)*(1+.42*boots),w=t*G.freq*(1+.10*boots);
  const gait=idle?0:Math.sin(w)*stride,lag=idle?0:Math.sin(w-.42)*stride,air=pose.air||0,lean=pose.lean||0,trip=pose.trip||0,vy=pose.vy||0,up=clamp(vy/(9.8*(1+.39*boots)),-1,1),pr=pose.roll||0;
  // Two bounces per stride: lowest at mid-stance (legs together), highest in flight (legs apart).
  const ph=idle?0:Math.sin(w),bounce=ph*ph,bob=idle?0:Math.sin(2*w-1.1);
  // Pelvis: lean grows with speed, hips yaw and roll with the stride, bank into a lane change.
  rot[0]=[trip*.20+.04*speed,-gait*.06+lean*.10,-lean*.13+gait*.05];
- off[0][1]=idle?Math.sin(t)*.014:bounce*.036*(1+.55*boots);off[0][2]=idle?Math.sin(t*.7)*.006:0;
+ off[0][1]=idle?Math.sin(t)*.014:bounce*.036*(1+.75*boots);off[0][2]=idle?Math.sin(t*.7)*.006:0;
  // Chest counters the hips and turns into the lane change; the head stays level, nods with the bounce and leads the turn.
- rot[1]=[.045+.10*speed+air*.07,Math.sin(t)*.035*(idle?.2:1)*G.sway+gait*.08+lean*.22,-gait*.03];
+ rot[1]=[.045+.10*speed+air*.07+.05*boots,Math.sin(t)*.035*(idle?.2:1)*G.sway+gait*.08+lean*.22,-gait*.03];
  rot[2]=[-.035-.05*speed-bounce*.03,Math.sin(t*.32)*.055*G.sway+lean*.15,lean*.09-gait*.02];
  // Glance over a shoulder (pose.look, signed, + = right): the chest twists a little, the head a lot and tilts into the turn.
  const look=pose.look||0;if(look){const a=Math.abs(look),s=Math.sign(look);rot[1][1]+=s*a*.60;rot[2][1]+=s*a*1.20;rot[2][0]-=a*.08;rot[2][2]-=s*a*.09;}
@@ -29,7 +31,7 @@ function rig(t,slide,pose,kind){
   // Elbows flex as the arm comes forward; a stumble throws the arms up and out.
   rot[ua]=[armSwing*.58-trip*.9,0,-side*.07+side*trip*.7];rot[fa]=[-.50-Math.max(0,-armLag)*.55-trip*.4,0,0];
   // Knee lifts on the forward swing, toe points on the push-off behind.
-  rot[th]=[-swing*.66,0,side*.025];rot[sh]=[.10+fwd*.95,0,0];rot[ft]=[-fwd*.28+back*.35,0,0];
+  rot[th]=[-swing*.66*(1+.30*boots),0,side*.025];rot[sh]=[.10+fwd*.95,0,0];rot[ft]=[-fwd*.28+back*.35*(1+.35*boots),0,0];
   if(air>0){
    // Rising: arms swing up, knees tuck. Falling: legs reach for the ground, arms spread for balance.
    const rise=Math.max(0,up),fall=Math.max(0,-up);
