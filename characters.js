@@ -69,12 +69,19 @@ function rig(t,slide,pose,kind){
   for(const [side,ua,fa,th,sh]of SIDES){rot[th][0]-=.45*k;rot[sh][0]+=.75*k;rot[ua][0]-=.2*k;rot[ua][2]+=side*.35*k;}
  }
  // Knocked down: pitch forward onto the ground, arms out to break the fall, legs trailing, gear flopping.
- const fall=pose.fall||0,rise=(pose.arrest&&kind!=='police')?1:(pose.rise||0);
+ const fall=pose.fall||0,rise=(pose.arrest&&kind!=='police')?1:(pose.rise||0),impact=pose.impact||0;
  if(fall>0){
   rot[0]=mix3(rot[0],[1.52,0,Math.sin(t*9)*.03*(1-fall)],fall);off[0]=[0,lerp(off[0][1],-.72,fall),lerp(off[0][2],.30,fall)];
   rot[1]=mix3(rot[1],[-.25,0,0],fall);rot[2]=mix3(rot[2],[-.62,.15,0],fall);
   for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[-2.3,0,side*.55],fall);rot[fa]=mix3(rot[fa],[-.35,0,0],fall);rot[th]=mix3(rot[th],[.25,0,side*.18],fall);rot[sh]=mix3(rot[sh],[.45,0,0],fall);rot[ft]=mix3(rot[ft],[.30,0,0],fall);}
   if(nb>15){rot[15]=mix3(rot[15],[-.45,0,0],fall);rot[16]=mix3(rot[16],[-.30,0,0],fall);rot[17]=mix3(rot[17],[0,0,.1],fall);}
+ }
+ // The crash instant: thrown backward and up, arms flung wide, before gravity pulls the forward face-plant
+ // above back over -- reads as a hit, not a switch flipping straight to limp.
+ if(impact>0){
+  rot[0]=mix3(rot[0],[-.85,-lean*.3,0],impact);off[0]=[0,lerp(off[0][1],.10,impact),lerp(off[0][2],-.34,impact)];
+  rot[1]=mix3(rot[1],[.60,0,0],impact);rot[2]=mix3(rot[2],[.34,0,0],impact);
+  for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[-2.15,0,-side*.45],impact);rot[fa]=mix3(rot[fa],[-1.55,0,0],impact);rot[th]=mix3(rot[th],[-.20,0,side*.10],impact);rot[sh]=mix3(rot[sh],[.55,0,0],impact);}
  }
  // Hauled up onto his knees: hands up, head hung, shoulders heaving.
  if(rise>0){
