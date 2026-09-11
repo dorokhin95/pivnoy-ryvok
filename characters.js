@@ -43,7 +43,7 @@ function rig(t,slide,pose,kind){
   rot[16]=[.05*Math.sin(2*w-1.5)+clamp(-vy*.03,-.22,.22)-trip*.15,-rot[2][1]*.6,lean*.12];
   rot[17]=[0,0,.05*Math.sin(2*w-.9)];off[17][1]=-.006*bob;
  }
- if(kind==='rider'){
+ if(kind==='rider'||pose.ride){
   const kick=Math.sin(t*.62),bump=Math.sin(t*1.3);
   off[0][1]=-.055+bump*.018;rot[1]=[-.13+kick*.03,kick*.04,0];rot[2]=[.13,-kick*.03,0];
   for(const [side,ua,fa]of [[-1,3,4],[1,6,7]]){rot[ua]=[-1.2794,0,-side*1.20];rot[fa]=[-.0075+bump*.02,0,-side*.223];}
@@ -52,7 +52,10 @@ function rig(t,slide,pose,kind){
   rot[12]=[.15+kick*.42,0,0];rot[13]=[.22+Math.max(0,-kick)*.50,0,0];
   if(nb>15){off[15][1]=.012*Math.sin(t*1.3-1.0);rot[15]=[.04*Math.sin(t*1.3-1.0)-kick*.03,0,0];rot[16]=[.07*Math.sin(t*1.3-1.2),0,0];}
  }
- if(slide>0&&pr>0){
+ if(slide>0&&pr>0&&pose.ride){
+  // Ducking on the scooter instead of rolling: knees deep, chest down, hands stay on the bar.
+  const k=slide;off[0][1]-=.34*k;rot[1][0]+=.42*k;rot[2][0]-=.25*k;for(const [side,ua,fa,th,sh,ft]of SIDES){rot[th]=mix3(rot[th],[-1.05,0,side*.08],k);rot[sh]=mix3(rot[sh],[1.7,0,0],k);rot[ft]=mix3(rot[ft],[-.4,0,0],k);}
+ }else if(slide>0&&pr>0){
   // Forward roll done by the skeleton: a real tuck (chin to chest, knees to chest, arms around the knees) and the whole
   // body turning about the centre of the curled-up ball, which sits 0.40 above the ground. No geometry is squashed.
   const k=slide,ang=clamp((pr-.12)/.76,0,1)*6.2831853,cx=Math.cos(ang),sx=Math.sin(ang);
@@ -81,6 +84,9 @@ function rig(t,slide,pose,kind){
   for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[-2.35,0,side*.5],rise);rot[fa]=mix3(rot[fa],[-.55,0,0],rise);rot[th]=mix3(rot[th],[0,0,side*.08],rise);rot[sh]=mix3(rot[sh],[1.57,0,0],rise);rot[ft]=mix3(rot[ft],[.9,0,0],rise);}
   if(nb>15){rot[15]=mix3(rot[15],[0,0,0],rise);rot[16]=mix3(rot[16],[.05,0,0],rise);rot[17]=mix3(rot[17],[0,0,0],rise);}
  }
+ // Jetpack flight: hanging from the straps, knees up a little, feet dangling.
+ const fly=pose.fly||0;
+ if(fly>0){rot[0]=mix3(rot[0],[.10,0,0],fly);rot[1][0]=lerp(rot[1][0],-.05,fly);rot[2][0]=lerp(rot[2][0],-.10,fly);for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[.20,0,-side*.12],fly);rot[fa]=mix3(rot[fa],[-2.05,0,-side*.25],fly);rot[th]=mix3(rot[th],[-.40+(side===1?.15:0),0,side*.07],fly);rot[sh]=mix3(rot[sh],[.85,0,0],fly);rot[ft]=mix3(rot[ft],[.40,0,0],fly);}}
  // Semyonych's street repertoire. knock: clotheslined by a bar, head and chest thrown back, arms flung up.
  const knock=pose.knock||0;
  if(knock>0){rot[0][0]-=.10*knock;rot[1][0]-=.42*knock;rot[2][0]-=.60*knock;off[0][1]-=.05*knock;for(const [side,ua,fa]of SIDES){rot[ua]=mix3(rot[ua],[-2.05,0,side*.55],knock);rot[fa]=mix3(rot[fa],[-.55,0,0],knock);}}
@@ -113,10 +119,11 @@ mat2 turn=mat2(cos(yaw),-sin(yaw),sin(yaw),cos(yaw));p.xz=turn*p.xz;n.xz=turn*n.
 vWorld=p;vRest=pos;vNormal=normalize(n);vAO=ao;vMaterial=material;
 vColor=albedo*((material>3.5&&material<5.5)?tint:vec3(1.));
 vec3 v=p-vec3(0.,5.2,-8.);float y=v.y*.951+v.z*.309;float z=-v.y*.309+v.z*.951;gl_Position=vec4(v.x*1.64/aspect,y*1.64,z*1.002-.2002,z);vFog=clamp((z-30.)/70.,0.,1.);}`;
- const fs=`precision mediump float;varying vec3 vNormal;varying vec3 vColor;varying vec3 vWorld;varying vec3 vRest;varying float vMaterial;varying float vFog;varying float vAO;
+ const fs=`precision mediump float;varying vec3 vNormal;varying vec3 vColor;varying vec3 vWorld;varying vec3 vRest;varying float vMaterial;varying float vFog;varying float vAO;uniform float hue;uniform float day;uniform float dusk;uniform vec3 fog;uniform float scroll;
+vec3 lamps(vec3 P,vec3 W,vec3 n){float k=floor((P.z-3.)/32.+.5);vec3 acc=vec3(0.);for(int i=-1;i<=1;i++){float lz=(k+float(i))*32.+3.-scroll;for(int s=-1;s<=1;s+=2){vec3 d=vec3(float(s)*3.95,5.1,lz)-W;float d2=dot(d,d);acc+=max(0.,dot(n,d*inversesqrt(d2)))*(4.4/(1.+d2*.06));}}return acc*vec3(1.,.80,.50);}
 float hash(vec3 q){return fract(sin(dot(q,vec3(12.9898,78.233,37.719)))*43758.5453);}
 float band(float lo,float hi){return step(lo,vMaterial)*(1.-step(hi,vMaterial));}uniform mediump float shadowPass;
-void main(){ if(shadowPass>.5){gl_FragColor=vec4(.02,.04,.07,.46);return;}
+void main(){ if(shadowPass>.5){gl_FragColor=vec4(.02,.04,.07,.46*(.25+.75*day));return;}
  vec3 n=normalize(vNormal),L=normalize(vec3(-.42,.78,-.50)),eye=normalize(vec3(0.,5.2,-8.)-vWorld),r=vRest;
  float isSkin=band(.5,1.5),isEye=band(1.5,2.5),isLeather=band(2.5,3.5),isCloth=band(3.5,4.5),isQuilt=band(4.5,5.5),isKnit=band(5.5,6.5),isMetal=band(6.5,7.5),isHair=band(7.5,8.5),isRubber=band(8.5,9.5),isPlastic=step(9.5,vMaterial);
  // Procedural micro-texture in rest space: fabric grain, quilting seams, knit ribs, hair strands.
@@ -129,13 +136,16 @@ void main(){ if(shadowPass>.5){gl_FragColor=vec4(.02,.04,.07,.46);return;}
  tex+=isKnit*(.11*cos(ang*46.)+.05*sin(r.y*300.));
  tex+=isHair*(.12*sin(r.x*230.+r.y*40.)+.06*sin(r.x*380.-r.y*30.+r.z*90.));
  vec3 base=vColor*tex;
+ // Per-instance garment recolour (scooter couriers): rotate cloth hues about the grey axis, leave skin, plastic and metal alone.
+ if(hue!=0.){vec3 k=vec3(.57735);float cs=cos(hue),sn=sin(hue);vec3 rot=base*cs+cross(k,base)*sn+k*dot(k,base)*(1.-cs);base=mix(base,rot,clamp(isCloth+isQuilt,0.,1.));}
  // Lighting: key with soft wrap, hemisphere ambient, baked AO, fill, per-material specular, skin warmth, rim, fog.
  float ndl=dot(n,L),diff=max(0.,ndl),wrapd=clamp(ndl*.55+.45,0.,1.);
  float lit=mix(diff,wrapd,.30+.40*isSkin+.20*isHair);
- vec3 amb=mix(vec3(.34,.30,.26),vec3(.62,.74,.84),n.y*.5+.5)*.88;
+ vec3 amb=mix(mix(vec3(.07,.09,.15),vec3(.12,.15,.24),n.y*.5+.5),mix(mix(vec3(.34,.30,.26),vec3(.62,.74,.84),n.y*.5+.5)*.88,vec3(.44,.31,.25),dusk*.45),day);
  float ao=mix(1.,vAO,.70-isEye*.55-isMetal*.25);
  float fill=max(0.,dot(n,normalize(vec3(.7,.3,.6))))*.26;
- vec3 color=base*(amb*ao+vec3(1.04,.98,.90)*lit*1.02*ao+fill*vec3(.62,.72,.82));
+ vec3 sun=mix(vec3(1.04,.98,.90),vec3(1.22,.60,.32),dusk)*day+vec3(.12,.15,.24)*(1.-day);
+ vec3 color=base*(amb*ao+sun*lit*1.02*ao+fill*vec3(.62,.72,.82)*(.3+.7*day));color+=base*lamps(vec3(vWorld.x,vWorld.y,vWorld.z+scroll),vWorld,n)*(1.-day)*ao;
  color+=base*vec3(.24,.07,.02)*(1.-lit)*isSkin*ao;
  vec3 h=normalize(L+eye);float ndh=max(0.,dot(n,h));
  float specPow=18.+isEye*70.+isMetal*60.+isPlastic*34.+isLeather*10.+isHair*8.;
@@ -145,13 +155,13 @@ void main(){ if(shadowPass>.5){gl_FragColor=vec4(.02,.04,.07,.46);return;}
  float rim=pow(1.-max(0.,dot(n,eye)),3.);
  color+=vec3(.30,.44,.50)*rim*.30*ao;
  color=color*1.08/(1.+color*.09);
- color=mix(color,vec3(.68,.79,.87),vFog);
+ color=mix(color,fog,vFog);
  gl_FragColor=vec4(color,1.);
 }`;
  const compile=(type,source)=>{const sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(sh));return sh;};
  this.program=gl.createProgram();gl.attachShader(this.program,compile(gl.VERTEX_SHADER,vs));gl.attachShader(this.program,compile(gl.FRAGMENT_SHADER,fs));gl.linkProgram(this.program);if(!gl.getProgramParameter(this.program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(this.program));
  this.attrs=[['position',3,0,gl.SHORT,false],['normal',3,6,gl.BYTE,true],['albedo',3,9,gl.UNSIGNED_BYTE,true],['joints',4,12,gl.UNSIGNED_BYTE,false],['weights',4,16,gl.UNSIGNED_BYTE,true],['material',1,20,gl.UNSIGNED_BYTE,false],['ao',1,21,gl.UNSIGNED_BYTE,true]].map(([n,size,offset,type,normalized])=>({loc:gl.getAttribLocation(this.program,n),size,offset,type,normalized}));
- this.uniforms=Object.fromEntries(['bones[0]','origin','aspect','yaw','tint','stretch','shadowPass'].map(n=>[n,gl.getUniformLocation(this.program,n)]));
+ this.uniforms=Object.fromEntries(['bones[0]','origin','aspect','yaw','tint','stretch','shadowPass','hue','day','dusk','fog','scroll'].map(n=>[n,gl.getUniformLocation(this.program,n)]));
  // Each character is a list of chunks (uint16 index limit); all chunks share the same bone matrices.
  this.skins={};for(const [kind,chunks]of Object.entries(window.PIVNOY_MODELS.meshes))this.meshes[kind]=this.decode(chunks);
  }
@@ -160,8 +170,9 @@ void main(){ if(shadowPass>.5){gl_FragColor=vec4(.02,.04,.07,.46);return;}
  outfit(i){if(!this.skins[i]){const src=window.PIVNOY_SKINS&&window.PIVNOY_SKINS[i];if(src)this.skins[i]=this.decode(src);}return this.skins[i]||this.skins[0]||[];}
  parts(a){if(a.kind==='boris')return this.meshes.boris.concat(this.outfit(a.pose.skin|0));return this.meshes[a.kind==='rider'&&a.z>28?'rider_far':a.kind];}
  add(kind,x,y,z,t,c,slide,pose){this.queue.push({kind,x,y,z,t,c,slide,pose});}
- draw(aspect,shadows=false){const gl=this.gl,u=this.uniforms;gl.useProgram(this.program);gl.uniform1f(u.aspect,aspect);gl.uniform1f(u.shadowPass,0);
-  const emit=a=>{const parts=this.parts(a);gl.uniformMatrix4fv(u['bones[0]'],false,a.bones);gl.uniform3f(u.origin,a.x,a.y,a.z);gl.uniform1f(u.yaw,a.pose.yaw||0);gl.uniform1f(u.stretch,a.pose.roll>0?0:(a.pose.stretch||0));gl.uniform3f(u.tint,1,1,1);
+ setLight(day,dusk,fog,scroll){this.light={day,dusk,fog,scroll};}
+ draw(aspect,shadows=false){const gl=this.gl,u=this.uniforms,L=this.light||{day:1,dusk:0,fog:[.68,.79,.87],scroll:0};gl.useProgram(this.program);gl.uniform1f(u.aspect,aspect);gl.uniform1f(u.shadowPass,0);gl.uniform1f(u.day,L.day);gl.uniform1f(u.dusk,L.dusk);gl.uniform3f(u.fog,L.fog[0],L.fog[1],L.fog[2]);gl.uniform1f(u.scroll,L.scroll);
+  const emit=a=>{const parts=this.parts(a);gl.uniformMatrix4fv(u['bones[0]'],false,a.bones);gl.uniform3f(u.origin,a.x,a.y,a.z);gl.uniform1f(u.yaw,a.pose.yaw||0);gl.uniform1f(u.hue,a.pose.hue||0);gl.uniform1f(u.stretch,a.pose.roll>0?0:(a.pose.stretch||0));gl.uniform3f(u.tint,1,1,1);
    for(const m of parts){gl.bindBuffer(gl.ARRAY_BUFFER,m.vb);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.ib);for(const at of this.attrs){gl.enableVertexAttribArray(at.loc);gl.vertexAttribPointer(at.loc,at.size,at.type,at.normalized,STRIDE,at.offset);}gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_SHORT,0);}};
   for(const a of this.queue){a.bones=rig(a.t,a.slide,a.pose,a.kind);emit(a);}
   // Shadow pass: the same skinned meshes flattened onto the road along the sun, blended once per pixel via the stencil.
