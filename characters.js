@@ -107,7 +107,13 @@ function rig(t,slide,pose,kind){
  }
  // Jetpack flight: hanging from the straps, knees up a little, feet dangling.
  const fly=pose.fly||0;
- if(fly>0){rot[0]=mix3(rot[0],[.10,0,0],fly);rot[1][0]=lerp(rot[1][0],-.05,fly);rot[2][0]=lerp(rot[2][0],-.10,fly);for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[.20,0,-side*.12],fly);rot[fa]=mix3(rot[fa],[-2.05,0,-side*.25],fly);rot[th]=mix3(rot[th],[-.40+(side===1?.15:0),0,side*.07],fly);rot[sh]=mix3(rot[sh],[.85,0,0],fly);rot[ft]=mix3(rot[ft],[.40,0,0],fly);}}
+ if(fly>0){
+  // Real elapsed time again, not t -- same reason as the scooter perk above: t is speed-linked and this is meant
+  // to read as a gentle hover sway/knee-pump, not something that revs up as he flies faster.
+  const ft2=pose.rideT??t,sway=Math.sin(ft2*1.1)*.07,pump=Math.sin(ft2*1.7)*.5+.5;
+  rot[0]=mix3(rot[0],[.10,sway*.5,sway*.6],fly);rot[1][0]=lerp(rot[1][0],-.05,fly);rot[2][0]=lerp(rot[2][0],-.10+sway*.35,fly);
+  for(const [side,ua,fa,th,sh,ft]of SIDES){rot[ua]=mix3(rot[ua],[.20,0,-side*.12],fly);rot[fa]=mix3(rot[fa],[-2.05,0,-side*.25],fly);rot[th]=mix3(rot[th],[-.40+(side===1?.15:0)+pump*.08,0,side*.07],fly);rot[sh]=mix3(rot[sh],[.85,0,0],fly);rot[ft]=mix3(rot[ft],[.40,0,0],fly);}
+ }
  // Semyonych's street repertoire. knock: clotheslined by a bar, head and chest thrown back, arms flung up.
  const knock=pose.knock||0;
  if(knock>0){rot[0][0]-=.10*knock;rot[1][0]-=.42*knock;rot[2][0]-=.60*knock;off[0][1]-=.05*knock;for(const [side,ua,fa]of SIDES){rot[ua]=mix3(rot[ua],[-2.05,0,side*.55],knock);rot[fa]=mix3(rot[fa],[-.55,0,0],knock);}}
