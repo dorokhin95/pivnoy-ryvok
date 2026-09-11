@@ -74,7 +74,7 @@ let vertices=new Float32Array(3600000),vi=0;const faces=[[0,1,2,0,2,3,0,0,-1],[4
 let mat=0;const pack=c=>(Math.max(0,Math.min(255,c[0]*255))|0)*65536+(Math.max(0,Math.min(255,c[1]*255))|0)*256+(Math.max(0,Math.min(255,c[2]*255))|0);
 function box(x,y,z,w,h,d,col,rot=0){const cs=Math.cos(rot),sn=Math.sin(rot),pts=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]].map(p=>{const a=p[0]*w/2,b=p[2]*d/2;return[x+a*cs+b*sn,y+p[1]*h/2,z+b*cs-a*sn]}),pc=pack(col);for(const f of faces){const nx=f[6]*cs+f[8]*sn,ny=f[7],nz=f[8]*cs-f[6]*sn;for(let j=0;j<6;j++){const p=pts[f[j]];vertices[vi++]=p[0];vertices[vi++]=p[1];vertices[vi++]=p[2];vertices[vi++]=nx;vertices[vi++]=ny;vertices[vi++]=nz;vertices[vi++]=pc;vertices[vi++]=mat}}}
 // Outfits are separate garment meshes (skins/boris-N.js) on Boris's shared head and hands; they load on demand.
-const VER='1.9.12';const skins=[{name:'Дворовый классик',color:[.82,.80,.74],price:0,desc:'Рваная футболка, драные шорты, один ботинок с дыркой, второй просто грязный'},{name:'Король теплотрассы',color:[.34,.39,.23],price:120,desc:'Стёганый ватник, вязаная шапка, рюкзак с одеялом и бутылкой'},{name:'Бомжставка',color:[.98,.78,.10],price:250,desc:'Жёлтая куртка курьера, кепка и термокороб «Бомжставка» за спиной'},{name:'Abibas',color:[.09,.09,.11],price:450,desc:'Чёрный спортивный костюм с четырьмя полосами, кепка и золотая цепь'}];
+const VER='1.9.13';const skins=[{name:'Дворовый классик',color:[.82,.80,.74],price:0,desc:'Рваная футболка, драные шорты, один ботинок с дыркой, второй просто грязный'},{name:'Король теплотрассы',color:[.34,.39,.23],price:120,desc:'Стёганый ватник, вязаная шапка, рюкзак с одеялом и бутылкой'},{name:'Бомжставка',color:[.98,.78,.10],price:250,desc:'Жёлтая куртка курьера, кепка и термокороб «Бомжставка» за спиной'},{name:'Abibas',color:[.09,.09,.11],price:450,desc:'Чёрный спортивный костюм с четырьмя полосами, кепка и золотая цепь'}];
 const skinLoads={};function loadSkin(i){if(skinLoads[i]||(window.PIVNOY_SKINS&&window.PIVNOY_SKINS[i]))return;skinLoads[i]=true;const s=document.createElement('script');s.src=`skins/boris-${i}.js?v=${VER}`;s.onerror=()=>{skinLoads[i]=false;toast('Не удалось загрузить образ')};document.head.append(s);}
 // Smooth, lit procedural meshes and articulated limbs. All geometry is original.
 function vertex(p,n,c){vertices[vi++]=p[0];vertices[vi++]=p[1];vertices[vi++]=p[2];vertices[vi++]=n[0];vertices[vi++]=n[1];vertices[vi++]=n[2];vertices[vi++]=pack(c);vertices[vi++]=mat;}
@@ -244,18 +244,25 @@ function carSurface(o,at){const rel=at-o.z;return rel>=-.64&&rel<=.90?1.295:.905
 function supportAt(x,at){let h=0,floor=0;for(const o of objects){if(o.done)continue;if(o.type==='car'&&Math.abs(x-o.lane*2.15)<.79&&Math.abs(at-o.z)<1.50){h=Math.max(h,carSurface(o,at));floor=Math.max(floor,.905);}if(o.type==='truck'&&Math.abs(x-o.lane*2.15)<.95&&Math.abs(at-o.z)<4.3){h=Math.max(h,truckSurface(o,at));floor=Math.max(floor,1.55);}}surfaceFloor=floor;return h;}
 function damage(kind){if(mode!=='run'||invincible>0)return;hitFlash=.30;sfx('hit');if(ride>0){ride=0;invincible=1.5;sfx('trip');toast('Самокат — в хлам! Дальше пешком');return;}if(shield>0){shield=0;invincible=2+save.shield;toast('Ватник выдержал!');return;}if(kind==='fatal'||chase>0){startCatch(kind);return;}if(kind==='barrier'){chase=CHASE_SECONDS;stumble=.75;knockdown=.9;invincible=.9;startChase();sfx('trip');toast('Барьер сломан!');return;}chase=CHASE_SECONDS;stumble=.75;invincible=.65;startChase();toast('Семёныч рядом! Беги без ошибок');}
 function startCatch(kind){mode='caught';caughtT=0;whistled=false;crashHit=kind==='fatal';if(kind==='fatal')speed=0;catchDecel=speed/.9;copZ=cop.mode==='off'?-8:Math.max(-8,Math.min(9,cop.z));copX0=cop.mode==='off'?px*.9+.38:cop.x;copYawFrom=cop.mode==='ambush'?Math.PI:cop.yaw;copArrive=Math.max(.75,Math.min(1.4,Math.abs(-1.05-copZ)/6));$('controls').hidden=true;persist();}
+const vHalf=t=>t==='truck'?3.8:t==='car'?1.5:.65,laneOf=o=>Math.abs(o.lane*2.15-px)<(o.type==='truck'?1.0:.88);
+// How far back a same-lane car/truck/scooter (o, own half-width oh) is allowed to close in on Boris during the
+// catch cinematic: never past Boris's own frozen spot, AND never past the back of whichever other still-solid
+// same-lane vehicle -- hit or not, car, truck or scooter -- is currently sitting closer to him than o is. Without
+// the second half, a trailing vehicle stops clear of Boris but drives straight through whatever he actually hit.
+const queueBound=(o,oh)=>{let b=distance+oh;for(const p of objects){if(p===o||p.done||p.crash||!['car','truck','scooter'].includes(p.type)||p.z>=o.z||!laneOf(p))continue;b=Math.max(b,p.z+vHalf(p.type)+oh);}return b;};
 function caught(dt){caughtT+=dt;hitFlash=Math.max(0,hitFlash-dt);stumble=0;speed=Math.max(0,speed-dt*catchDecel);distance+=speed*dt;scenery+=speed*dt;
  if(jumpY>0){vy-=23*dt;jumpY=Math.max(0,jumpY+vy*dt);if(jumpY===0){vy=0;grounded=true;surfaceY=0;}}
  for(const o of objects){
   if(o.crash){o.crash+=dt;o.z-=dt*Math.max(0,3-o.crash*3);}
-  else if(o.type==='scooter'){const sameLane=Math.abs(o.lane*2.15-px)<.88;o.z=sameLane?Math.max(distance+.65,o.z-dt*2):o.z-dt*2;}
+  else if(o.type==='scooter'){const sameLane=laneOf(o);o.z=sameLane?Math.max(queueBound(o,.65),o.z-dt*2):o.z-dt*2;}
   else if((o.type==='car'||o.type==='truck')&&!o.hit){
    // Boris is frozen here for the rest of the cinematic, but nothing else here knows that -- oncoming traffic
-   // (a SECOND car or truck in the very lane he stopped in, still approaching, not the one he actually hit) would
-   // otherwise just drive straight through his now-stationary body with no collision check running in this mode
-   // at all. Clamp it to stop at its own front face against him instead, same as the one he hit already has.
-   const v=Math.max(1.2,speed*.13),w2=o.type==='truck'?3.8:1.5,sameLane=Math.abs(o.lane*2.15-px)<(o.type==='truck'?1.0:.88);
-   o.z=sameLane?Math.max(distance+w2,o.z-v*dt):o.z-v*dt;o.roll=(o.roll||0)-v*dt/.31;
+   // (another car, truck or scooter in the very lane he stopped in, still approaching, not the one he actually
+   // hit) would otherwise just drive straight through his now-stationary body, or through whatever DID stop in
+   // front of him, with no collision check running in this mode at all. queueBound clamps each of them to stop
+   // behind Boris AND behind whichever other same-lane vehicle is currently closer to him than they are.
+   const v=Math.max(1.2,speed*.13),sameLane=laneOf(o);
+   o.z=sameLane?Math.max(queueBound(o,vHalf(o.type)),o.z-v*dt):o.z-v*dt;o.roll=(o.roll||0)-v*dt/.31;
   }
   if(o.follow&&!o.pull)o.z=o.follow.z+o.offset;
  }objects=objects.filter(o=>!o.done&&!o.pull&&o.z>distance-8-(o.type==='truck'?4:0));
@@ -320,7 +327,14 @@ for(const o of objects){if(o.done)continue;if(o.type==='pigeons'){pigeons(o,dt);
   // for a frame or two and deal fatal damage before ever getting the chance to land. Checking against each object's
   // LOWEST tier instead can only be more forgiving, never wrong: reaching that height at all means being on it somewhere.
   const safe=(o.type==='car'&&jumpY>=.905-.06)||(o.type==='truck'&&jumpY>=1.55-.06)||(o.type==='barrier'&&jumpY>.95)||(o.type==='debris'&&jumpY>.30)||(o.type==='bar'&&(slide>0&&jumpY<.15||jumpY>2.35))||(o.type==='scooter'&&jumpY>1.95);
-  if(!safe&&invincible<=0){const back=distance-(o.z-w);if(back>0){distance-=back;scenery-=back;}if(o.type==='scooter'){o.crash=1e-4;sfx('trip');}else o.hit=true;damage(o.type==='barrier'?'barrier':o.type==='debris'?'stumble':'fatal');if(mode==='over')break;}}}}
+  if(!safe&&invincible<=0){
+   // A fatal hit against a car or truck plays the face-down fall pose, which pitches Boris's whole upper body
+   // forward and down as he collapses -- stopping him with just his own standing footprint at the object's front
+   // face still lands his head and arms inside its body once that pose plays (measured directly against the
+   // rendered mesh: at the bare w gap his torso is fully hidden under the bumper, clear only from about w+1.5).
+   // Doesn't apply when a shield or scooter perk is about to absorb the hit -- the run just continues, no fall pose.
+   const willFall=(o.type==='car'||o.type==='truck')&&ride<=0&&shield<=0,w2=w+(willFall?1.5:0);
+   const back=distance-(o.z-w2);if(back>0){distance-=back;scenery-=back;}if(o.type==='scooter'){o.crash=1e-4;sfx('trip');}else o.hit=true;damage(o.type==='barrier'?'barrier':o.type==='debris'?'stumble':'fatal');if(mode==='over')break;}}}}
 objects=objects.filter(o=>!o.done&&o.z>distance-8-(o.type==='truck'?4:0));save.best=Math.max(save.best,Math.floor(distance));if(Math.floor(distance/25)!==Math.floor((distance-speed*dt)/25))persist();$('meters').textContent=Math.floor(distance)+' м';$('bottles').textContent=runBottles;$('powers').textContent=[chase>0?'⚠ СЕМЁНЫЧ РЯДОМ':'',shield>0?'◆ Щит '+Math.ceil(shield)+'с':'',magnet>0?'МАГНИТ '+Math.ceil(magnet)+'с':'',double>0?'×2 '+Math.ceil(double)+'с':'',boots>0?'КРОССОВКИ '+Math.ceil(boots)+'с':'',jet>0?'РАНЕЦ '+Math.ceil(jet)+'с':'',ride>0?'САМОКАТ '+Math.ceil(ride)+'с':'',kmh(speed)+' км/ч'].filter(Boolean).join(' · ')}
 const sceneryCache=new Map();
 function scenerySegment(idx,z){let data=sceneryCache.get(idx);if(!data){const savedVertices=vertices,savedVi=vi;vertices=new Float32Array(240000);vi=0;const z=0;const district=districtOf(idx);
