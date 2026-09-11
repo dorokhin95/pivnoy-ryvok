@@ -74,7 +74,7 @@ let vertices=new Float32Array(3600000),vi=0;const faces=[[0,1,2,0,2,3,0,0,-1],[4
 let mat=0;const pack=c=>(Math.max(0,Math.min(255,c[0]*255))|0)*65536+(Math.max(0,Math.min(255,c[1]*255))|0)*256+(Math.max(0,Math.min(255,c[2]*255))|0);
 function box(x,y,z,w,h,d,col,rot=0){const cs=Math.cos(rot),sn=Math.sin(rot),pts=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]].map(p=>{const a=p[0]*w/2,b=p[2]*d/2;return[x+a*cs+b*sn,y+p[1]*h/2,z+b*cs-a*sn]}),pc=pack(col);for(const f of faces){const nx=f[6]*cs+f[8]*sn,ny=f[7],nz=f[8]*cs-f[6]*sn;for(let j=0;j<6;j++){const p=pts[f[j]];vertices[vi++]=p[0];vertices[vi++]=p[1];vertices[vi++]=p[2];vertices[vi++]=nx;vertices[vi++]=ny;vertices[vi++]=nz;vertices[vi++]=pc;vertices[vi++]=mat}}}
 // Outfits are separate garment meshes (skins/boris-N.js) on Boris's shared head and hands; they load on demand.
-const VER='1.9.4';const skins=[{name:'Дворовый классик',color:[.82,.80,.74],price:0,desc:'Рваная футболка, драные шорты, один ботинок с дыркой, второй просто грязный'},{name:'Король теплотрассы',color:[.34,.39,.23],price:120,desc:'Стёганый ватник, вязаная шапка, рюкзак с одеялом и бутылкой'},{name:'Бомжставка',color:[.98,.78,.10],price:250,desc:'Жёлтая куртка курьера, кепка и термокороб «Бомжставка» за спиной'},{name:'Abibas',color:[.09,.09,.11],price:450,desc:'Чёрный спортивный костюм с четырьмя полосами, кепка и золотая цепь'}];
+const VER='1.9.5';const skins=[{name:'Дворовый классик',color:[.82,.80,.74],price:0,desc:'Рваная футболка, драные шорты, один ботинок с дыркой, второй просто грязный'},{name:'Король теплотрассы',color:[.34,.39,.23],price:120,desc:'Стёганый ватник, вязаная шапка, рюкзак с одеялом и бутылкой'},{name:'Бомжставка',color:[.98,.78,.10],price:250,desc:'Жёлтая куртка курьера, кепка и термокороб «Бомжставка» за спиной'},{name:'Abibas',color:[.09,.09,.11],price:450,desc:'Чёрный спортивный костюм с четырьмя полосами, кепка и золотая цепь'}];
 const skinLoads={};function loadSkin(i){if(skinLoads[i]||(window.PIVNOY_SKINS&&window.PIVNOY_SKINS[i]))return;skinLoads[i]=true;const s=document.createElement('script');s.src=`skins/boris-${i}.js?v=${VER}`;s.onerror=()=>{skinLoads[i]=false;toast('Не удалось загрузить образ')};document.head.append(s);}
 // Smooth, lit procedural meshes and articulated limbs. All geometry is original.
 function vertex(p,n,c){vertices[vi++]=p[0];vertices[vi++]=p[1];vertices[vi++]=p[2];vertices[vi++]=n[0];vertices[vi++]=n[1];vertices[vi++]=n[2];vertices[vi++]=pack(c);vertices[vi++]=mat;}
@@ -114,6 +114,14 @@ function truck(x,z,variant=0,roll=0){const c=[[.86,.86,.84],[.20,.36,.62],[.78,.
  mat=12;for(let k=-1;k<=1;k++)box(x+k*.55,1.60,z-3.76,.10,.045,.035,[1,.72,.22]);
  mat=6;box(x,1.10,z+3.71,.02,1.45,.02,dark);for(const s of [-1,1])box(x+s*.10,1.10,z+3.70,.05,.07,.03,[.30,.30,.32]);
  limb([x+.92,.38,z+1.60],[x+.92,1.28,z+1.48],.038,.032,[.28,.29,.31],6);box(x+.92,1.30,z+1.46,.05,.05,.05,[.18,.18,.20]);
+ // Corrugated cargo-box side ribs, roof vents, grille slats, turn signals, plates, mudflaps and a driver silhouette.
+ mat=6;for(let rz=-1.9;rz<=3.5;rz+=.75)for(const s of [-1,1])box(x+s*1.028,1.10,z+rz,.012,1.42,.05,c.map(v=>v*.85));
+ for(let rz=-3.1;rz<=4.0;rz+=1.05)box(x,1.885,z+rz,.28,.08,.10,c.map(v=>v*.92));
+ for(let k=-2;k<=2;k++)box(x+k*.13,.36,z-3.84,.60,.016,.02,[.16,.17,.18]);
+ mat=12;box(x-.40,.66,z-3.80,.09,.06,.02,[.98,.62,.16]);box(x+.40,.66,z-3.80,.09,.06,.02,[.98,.62,.16]);
+ mat=0;box(x,.40,z-3.87,.28,.09,.015,[.20,.20,.22]);box(x,.44,z+3.87,.28,.09,.015,[.20,.20,.22]);
+ mat=4;ellipsoid(x-.35,1.42,z-3.30,.11,.14,.06,[.22,.17,.14],6,4);
+ mat=9;for(const s of [-1,1])box(x+s*.92,.14,z-3.05,.26,.28,.02,[.10,.11,.12]);
  mat=0;}
 // Roadworks barrier: concrete feet, two posts, striped boards and a blinking lamp.
 function barrier(x,z,variant=0){mat=6;for(const s of [-1,1]){box(x+s*.70,.12,z,.28,.24,.5,[.55,.56,.53]);box(x+s*.70,.62,z,.09,.8,.09,[.90,.39,.17]);}box(x,.72,z,1.65,.34,.10,[.90,.39,.17]);box(x,1.02,z,1.65,.16,.09,[.90,.39,.17]);box(x,.38,z,1.65,.10,.08,[.90,.39,.17]);for(let k=0;k<5;k++)box(x-.66+k*.33,.72,z-.055,.14,.30,.012,[.96,.90,.72]);mat=12;box(x-.62,1.20,z,.14,.14,.14,Math.floor(time*2.2+variant)%2===0?[1,.62,.20]:[.55,.30,.12]);mat=0;}
@@ -260,10 +268,21 @@ for(const o of objects){if(o.done)continue;if(o.type==='pigeons'){pigeons(o,dt);
  const z=o.z-distance,zPrev=z+(speed-own)*dt,dx=Math.abs(o.lane*2.15-px),collect=PERKS.includes(o.type);
  if(o.type==='bottle'){if(o.x===undefined){o.x=o.lane*2.15;o.h=(o.y||0)+.5;}
   if(!o.pull){if(magnet>0&&z<7&&z>-.6)o.pull=1;else if(z<1.3&&zPrev>-1.05&&dx<1.0&&Math.abs(jumpY-(o.y||0))<1.25)o.pull=2;}
-  if(o.pull){const ty=jumpY+1.0,tz=distance+.35,k=Math.min(1,dt*(o.pull===1?6+Math.max(0,7-z)*2.2:40));o.x+=(px-o.x)*k;o.h+=(ty-o.h)*k;o.z+=(tz-o.z)*k;if(Math.hypot(o.x-px,o.h-ty,o.z-tz)<.45){o.done=true;const val=(double>0?2:1)+(Math.random()<save.bonus*.15?1:0);runBottles+=val;save.wallet+=val;save.total++;persist();sfx('collect')}}continue;}
+  // The pull target (tz) recedes at the full game speed, which tops out at 46 m/s -- the old fixed factor
+  // (up to 21.4/s for a magnet, 40/s for a close grab) only out-closes a receding target up to roughly that
+  // same speed, so past it the bottle settles into a permanent trailing lag and is never actually collected
+  // (this is exactly what a magnet pull at high speed looked like: a bottle stuck behind Boris forever).
+  // Scaling the factor with the current speed guarantees the closing rate always outpaces the recession.
+  if(o.pull){const ty=jumpY+1.0,tz=distance+.35,factor=Math.max(o.pull===1?6+Math.max(0,7-z)*2.2:40,speed*1.5+8),k=Math.min(1,dt*factor);o.x+=(px-o.x)*k;o.h+=(ty-o.h)*k;o.z+=(tz-o.z)*k;if(Math.hypot(o.x-px,o.h-ty,o.z-tz)<.45){o.done=true;const val=(double>0?2:1)+(Math.random()<save.bonus*.15?1:0);runBottles+=val;save.wallet+=val;save.total++;persist();sfx('collect')}}continue;}
  if(collect){if(z<1.05&&zPrev>-1.05&&dx<1.0&&Math.abs(jumpY-(o.y||0))<1.25){o.done=true;perk(o.type);}}
  else if(!o.hit){const w=o.type==='truck'?3.8:o.type==='car'?1.5:.65;if(z<w&&zPrev>-w&&dx<(o.type==='truck'?1.0:.88)){
-  const safe=(o.type==='car'&&jumpY>=carSurface(o,distance)-.06)||(o.type==='truck'&&jumpY>=truckSurface(o,distance)-.06)||(o.type==='barrier'&&jumpY>.95)||(o.type==='debris'&&jumpY>.30)||(o.type==='bar'&&(slide>0&&jumpY<.15||jumpY>2.35))||(o.type==='scooter'&&jumpY>1.95);
+  // Cars and trucks are one object with TWO possible standing heights (hood/roof, cab/cargo) depending on where along
+  // it you are. This check used to compare against the exact height for the runner's current spot -- but the landing
+  // physics that resolves which of the two heights applies runs earlier in the SAME frame and can legitimately still
+  // be mid-fall here (not yet caught), so a perfectly normal landing arc could read as "too low, must be a side hit"
+  // for a frame or two and deal fatal damage before ever getting the chance to land. Checking against each object's
+  // LOWEST tier instead can only be more forgiving, never wrong: reaching that height at all means being on it somewhere.
+  const safe=(o.type==='car'&&jumpY>=.905-.06)||(o.type==='truck'&&jumpY>=1.55-.06)||(o.type==='barrier'&&jumpY>.95)||(o.type==='debris'&&jumpY>.30)||(o.type==='bar'&&(slide>0&&jumpY<.15||jumpY>2.35))||(o.type==='scooter'&&jumpY>1.95);
   if(!safe&&invincible<=0){if(o.type==='scooter'){o.crash=1e-4;sfx('trip');}else o.hit=true;damage(o.type==='debris'||o.type==='barrier'?'stumble':'fatal');if(mode==='over')break;}}}}
 objects=objects.filter(o=>!o.done&&o.z>distance-8-(o.type==='truck'?4:0));save.best=Math.max(save.best,Math.floor(distance));if(Math.floor(distance/25)!==Math.floor((distance-speed*dt)/25))persist();$('meters').textContent=Math.floor(distance)+' м';$('bottles').textContent=runBottles;$('powers').textContent=[chase>0?'⚠ СЕМЁНЫЧ РЯДОМ':'',shield>0?'◆ Щит '+Math.ceil(shield)+'с':'',magnet>0?'МАГНИТ '+Math.ceil(magnet)+'с':'',double>0?'×2 '+Math.ceil(double)+'с':'',boots>0?'КРОССОВКИ '+Math.ceil(boots)+'с':'',jet>0?'РАНЕЦ '+Math.ceil(jet)+'с':'',ride>0?'САМОКАТ '+Math.ceil(ride)+'с':'',kmh(speed)+' км/ч'].filter(Boolean).join(' · ')}
 const sceneryCache=new Map();
