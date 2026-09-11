@@ -43,7 +43,7 @@ function rig(t,slide,pose,kind){
   rot[16]=[.05*Math.sin(2*w-1.5)+clamp(-vy*.03,-.22,.22)-trip*.15,-rot[2][1]*.6,lean*.12];
   rot[17]=[0,0,.05*Math.sin(2*w-.9)];off[17][1]=-.006*bob;
  }
- if(kind==='rider'||pose.ride){
+ if(kind==='rider'){
   const kick=Math.sin(t*.62),bump=Math.sin(t*1.3);
   off[0][1]=-.055+bump*.018;rot[1]=[-.13+kick*.03,kick*.04,0];rot[2]=[.13,-kick*.03,0];
   for(const [side,ua,fa]of [[-1,3,4],[1,6,7]]){rot[ua]=[-1.2794,0,-side*1.20];rot[fa]=[-.0075+bump*.02,0,-side*.223];}
@@ -51,6 +51,15 @@ function rig(t,slide,pose,kind){
   rot[9]=[-.15+Math.max(0,kick)*.07,0,0];rot[10]=[.20+Math.max(0,kick)*.14,0,0];
   rot[12]=[.15+kick*.42,0,0];rot[13]=[.22+Math.max(0,-kick)*.50,0,0];
   if(nb>15){off[15][1]=.012*Math.sin(t*1.3-1.0);rot[15]=[.04*Math.sin(t*1.3-1.0)-kick*.03,0,0];rot[16]=[.07*Math.sin(t*1.3-1.2),0,0];}
+ } else if(pose.ride){
+  // Boris on his own speed-boost scooter: unlike the oncoming riders above (one foot planted, one leg kick-pushing),
+  // he isn't propelling it himself -- both feet stay planted side by side on the deck, knees flexed evenly for
+  // balance, so he reads as standing and riding rather than one leg dangling/swinging free.
+  const bump=Math.sin(t*1.3),sway=Math.sin(t*.9)*.035;
+  off[0][1]=-.09+bump*.012;rot[1]=[-.10,sway,0];rot[2]=[.11,-sway*.6,0];
+  for(const [side,ua,fa]of [[-1,3,4],[1,6,7]]){rot[ua]=[-1.30,0,-side*1.15];rot[fa]=[-.04+bump*.015,0,-side*.20];}
+  for(const [side,th,sh]of [[-1,9,10],[1,12,13]]){rot[th]=[-.16+bump*.02,0,side*.05];rot[sh]=[.24-bump*.02,0,0];}
+  if(nb>15){off[15][1]=.010*bump;rot[15]=[.03*bump,0,0];rot[16]=[.05*bump,0,0];}
  }
  if(slide>0&&pr>0&&pose.ride){
   // Ducking on the scooter instead of rolling: knees deep, chest down, hands stay on the bar.
